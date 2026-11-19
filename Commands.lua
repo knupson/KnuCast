@@ -62,6 +62,22 @@ function Commands.PrintDebug()
         totalButtons,
         withRules
     ))
+
+    local playerClass = ns.Data.GetPlayerClass()
+    if playerClass then
+        for i = 1, #ns.Data.RULES do
+            local rule = ns.Data.RULES[i]
+            if rule.class == playerClass then
+                local spellName = ns.Data.GetSpellName(rule.id) or L['pending']
+                ns.Print(string.format(
+                    L['Rule %d: %s (%s)'],
+                    rule.id,
+                    spellName,
+                    tostring(rule.kind)
+                ))
+            end
+        end
+    end
 end
 
 function Commands.Handle(msg)
@@ -112,8 +128,7 @@ function Commands:Register()
     ns.KL:RegisterCommand('cast', Commands.Handle, L['Situational spell highlights on action buttons'], { 'knucast' })
 end
 
-Commands:Register()
-
+-- Registered on login, never at file load: an older KnuLib copy may still be the active one.
 ns:RegisterEvent('PLAYER_LOGIN', function()
     Commands:Register()
 end)

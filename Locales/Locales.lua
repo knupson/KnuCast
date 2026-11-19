@@ -12,6 +12,8 @@ ns.L = KL:NewLocale({
     ['Test mode: %s'] = 'Modo de prueba: %s',
     ['Commands: /knu cast [glow on|off | grey on|off | sound on|off | debug | test]'] = 'Comandos: /knu cast [glow on|off | grey on|off | sound on|off | debug | test]',
     ['Debug: targetType=%s, casting=%s, buttons=%d, withRules=%d'] = 'Depuración: tipoObjetivo=%s, lanzando=%s, botones=%d, conRegla=%d',
+    ['Rule %d: %s (%s)'] = 'Regla %d: %s (%s)',
+    ['pending'] = 'pendiente',
     ['secret'] = 'secreto',
     ['none'] = 'ninguno',
     ['yes'] = 'sí',
