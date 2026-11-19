@@ -68,6 +68,11 @@ end
 
 LoadFromToc('KnuCast.toc')
 
+-- Verify command registration happens only on PLAYER_LOGIN, not at file load.
+AssertEq(ns.KL.commands['cast'], nil, 'Command is not registered at file load')
+Stub.FireEvent('PLAYER_LOGIN')
+Assert(ns.KL.commands['cast'] ~= nil, 'Command is registered on PLAYER_LOGIN')
+
 -- Also syntax-check the test files themselves.
 do
     local c1, e1 = loadfile('tests/wow_stub.lua')
@@ -455,11 +460,21 @@ do
     AssertEq(ns.Engine.testMode, false, 'Second /knu cast test disables test mode')
     AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Glow cleared when test mode is turned off')
 
-    -- Debug and status output
-    local beforeMsgs = #Stub.chatMessages
+    -- Debug and status output (including per-rule debug lines and matched button count)
+    Stub.chatMessages = {}
+    Stub.spells[2878] = nil -- Turn Undead uncached -> should print as pending
     ns.KL:Dispatch('cast debug')
+    local debugOutput = table.concat(Stub.chatMessages, '\n')
+    Assert(debugOutput:find('withRules=1', 1, true) ~= nil, 'debug prints count of action buttons matching a rule')
+    Assert(debugOutput:find('879', 1, true) ~= nil and debugOutput:find('Exorcism', 1, true) ~= nil and debugOutput:find('types', 1, true) ~= nil, 'debug prints rule 879 resolved name and kind')
+    Assert(debugOutput:find('2812', 1, true) ~= nil and debugOutput:find('Holy Wrath', 1, true) ~= nil, 'debug prints rule 2812 resolved name')
+    Assert(debugOutput:find('2878', 1, true) ~= nil and debugOutput:find('pending', 1, true) ~= nil, 'debug prints pending for unresolved rule 2878')
+    Assert(debugOutput:find('24275', 1, true) ~= nil and debugOutput:find('Hammer of Wrath', 1, true) ~= nil and debugOutput:find('execute', 1, true) ~= nil, 'debug prints rule 24275 resolved name and kind')
+    Stub.spells[2878] = 'Turn Undead'
+
+    local beforeStatus = #Stub.chatMessages
     ns.KL:Dispatch('cast')
-    Assert(#Stub.chatMessages >= beforeMsgs + 3, 'debug and status commands print chat lines')
+    Assert(#Stub.chatMessages >= beforeStatus + 2, 'status command prints chat lines')
 end
 
 -- 10. Sound only for interrupt and execute (once per transition); silence for types and debuff
@@ -616,6 +631,135 @@ do
     Stub.FireEvent('SPELL_DATA_LOAD_RESULT', 5614, true)
     AssertEq(ns.Data.hasPendingActionSpells, false, 'hasPendingActionSpells cleared once 5614 resolves')
     AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Overlay refreshed to glow when rank 5614 loads')
+end
+
+-- 13. Spell request deduplication, success=false retry cap (max 2), and targeted button refresh
+do
+    ResetTestEnvironment('PALADIN')
+    Stub.spells[5614] = nil -- Uncached Exorcism Rank 2
+    Stub.spells[99999] = nil -- Non-existent / failing spell
+
+    local btn1 = CreateFrame('CheckButton', 'ActionButton1')
+    btn1.action = 1
+    Stub.actions[1] = { type = 'spell', id = 5614 }
+
+    local btn2 = CreateFrame('CheckButton', 'ActionButton2')
+    btn2.action = 2
+    Stub.actions[2] = { type = 'spell', id = 2812 } -- Holy Wrath (already cached)
+
+    local btn3 = CreateFrame('CheckButton', 'ActionButton3')
+    btn3.action = 3
+    Stub.actions[3] = { type = 'spell', id = 99999 }
+
+    Stub.units.target = { canAttack = true, creatureTypeID = 6 } -- Undead
+
+    ns.Buttons:Discover()
+    -- Discover called GetSlotSpellName once; now call UpdateAll multiple times while in-flight
+    ns.Engine:UpdateAll()
+    ns.Engine:UpdateAll()
+    ns.Data:TrackActionSpell(5614)
+    ns.Data:TrackActionSpell(99999)
+
+    AssertEq(Stub.spellRequestCounts[5614], 1, 'In-flight spell 5614 requested only once across repeated lookups')
+    AssertEq(Stub.spellRequestCounts[99999], 1, 'In-flight spell 99999 requested only once across repeated lookups')
+
+    -- Spy on SetVisual to verify SPELL_DATA_LOAD_RESULT refreshes only affected buttons
+    local touchedButtons = {}
+    local origSetVisual = ns.Buttons.SetVisual
+    ns.Buttons.SetVisual = function(self, button, visual)
+        touchedButtons[button] = (touchedButtons[button] or 0) + 1
+        return origSetVisual(self, button, visual)
+    end
+
+    -- First failure for 99999: marks failed, does not refresh any buttons
+    Stub.FireEvent('SPELL_DATA_LOAD_RESULT', 99999, false)
+    AssertEq(ns.Data.failedSpells[99999], true, 'Spell 99999 marked as failed on success=false')
+    AssertEq(ns.Data.inFlightSpells[99999], nil, 'In-flight flag cleared on SPELL_DATA_LOAD_RESULT')
+    AssertEq(next(touchedButtons), nil, 'No buttons refreshed when SPELL_DATA_LOAD_RESULT has success=false')
+
+    -- Next lookup retries 99999 once (attempt 2 of 2), deduplicated while in-flight
+    ns.Engine:UpdateAll()
+    ns.Engine:UpdateAll()
+    AssertEq(Stub.spellRequestCounts[99999], 2, 'Spell 99999 retried a second time after first failure')
+
+    -- Second failure for 99999: capped at 2 total requests and removed from pending
+    touchedButtons = {}
+    Stub.FireEvent('SPELL_DATA_LOAD_RESULT', 99999, false)
+    AssertEq(ns.Data.failedSpells[99999], true, 'Spell 99999 remains marked failed after second failure')
+    AssertEq(ns.Data.pendingActionSpells[99999], nil, 'Spell 99999 removed from pendingActionSpells after 2 failures')
+    AssertEq(next(touchedButtons), nil, 'No buttons refreshed on second failure')
+
+    -- Further lookups must NOT request 99999 a 3rd time
+    ns.Engine:UpdateAll()
+    ns.Data:TrackActionSpell(99999)
+    AssertEq(Stub.spellRequestCounts[99999], 2, 'Spell 99999 never requested more than 2 times total')
+    AssertEq(ns.Data.pendingActionSpells[99999], nil, 'Spell 99999 not re-added to pendingActionSpells after cap')
+
+    -- Resolve 5614: only btn1 (which holds 5614) should be refreshed, not btn2 or btn3
+    touchedButtons = {}
+    Stub.spells[5614] = 'Exorcism'
+    Stub.FireEvent('SPELL_DATA_LOAD_RESULT', 5614, true)
+    AssertEq(touchedButtons[btn1], 1, 'Affected button btn1 refreshed when 5614 loads')
+    AssertEq(touchedButtons[btn2], nil, 'Unaffected button btn2 not refreshed when 5614 loads')
+    AssertEq(touchedButtons[btn3], nil, 'Unaffected button btn3 not refreshed when 5614 loads')
+    AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'btn1 glows after 5614 loads')
+
+    ns.Buttons.SetVisual = origSetVisual
+end
+
+-- 14. UpdateButton (LibActionButton callback path) sound transition logic
+do
+    ResetTestEnvironment('ROGUE')
+    ns.db.sound = true
+
+    local callbacks = {}
+    local lab = LibStub:NewLibrary('LibActionButton-1.0', 100)
+    function lab.RegisterCallback(target, event, handler)
+        callbacks[event] = { target = target, handler = handler }
+    end
+    local function FireLAB(event, button)
+        local entry = callbacks[event]
+        if entry and type(entry.handler) == 'function' then
+            entry.handler(event, button)
+        end
+    end
+
+    local btnLab = CreateFrame('CheckButton', 'ElvUI_Bar1Button1')
+    btnLab._state_type = 'action'
+    btnLab._state_action = 2 -- starts on empty slot
+    Stub.actions[1] = { type = 'spell', id = 1766 } -- Kick (interrupt)
+    Stub.actions[2] = nil
+
+    ns.Buttons:Discover()
+    Stub.units.target = {
+        canAttack = true,
+        creatureTypeID = 7,
+        casting = { name = 'Shadow Bolt', notInterruptible = false },
+    }
+    ns.Engine:UpdateAll()
+    AssertEq(#Stub.soundsPlayed, 0, 'No sound when interrupt spell is not on active button')
+
+    -- LAB pages button onto Kick while target is casting -> plays sound once
+    btnLab._state_action = 1
+    FireLAB('OnButtonUpdate', btnLab)
+    AssertEq(ns.Buttons:GetVisual(btnLab), 'glow', 'LAB button glows when paged to Kick during cast')
+    AssertEq(#Stub.soundsPlayed, 1, 'Sound played once when UpdateButton transitions to interrupt glow')
+
+    -- Repeated LAB callback without state change must not play sound again
+    FireLAB('OnButtonState', btnLab)
+    FireLAB('OnButtonUpdate', btnLab)
+    AssertEq(#Stub.soundsPlayed, 1, 'No duplicate sound on subsequent UpdateButton calls while already active')
+
+    -- LAB pages away to empty slot, then back to Kick -> plays second sound on new transition
+    btnLab._state_action = 2
+    FireLAB('OnButtonUpdate', btnLab)
+    AssertEq(ns.Buttons:GetVisual(btnLab), 'none', 'LAB button clears glow when paged away')
+    AssertEq(#Stub.soundsPlayed, 1, 'No sound when transitioning away from interrupt')
+
+    btnLab._state_action = 1
+    FireLAB('OnButtonUpdate', btnLab)
+    AssertEq(ns.Buttons:GetVisual(btnLab), 'glow', 'LAB button glows again when paged back to Kick')
+    AssertEq(#Stub.soundsPlayed, 2, 'Second sound played when UpdateButton transitions back to interrupt glow')
 end
 
 print(string.format('%d passed, %d failed (0 failures required)', passed, failed))

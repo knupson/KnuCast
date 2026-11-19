@@ -345,6 +345,7 @@ function Stub.ResetSpells()
     Stub.spells = {}
     Stub.lastRequestedSpell = nil
     Stub.requestedSpells = {}
+    Stub.spellRequestCounts = {}
     for k, v in pairs(Stub.DEFAULT_SPELLS) do
         Stub.spells[k] = v
     end
@@ -358,6 +359,7 @@ _G.C_Spell = {
     RequestLoadSpellData = function(spellID)
         Stub.lastRequestedSpell = spellID
         Stub.requestedSpells[spellID] = true
+        Stub.spellRequestCounts[spellID] = (Stub.spellRequestCounts[spellID] or 0) + 1
     end,
 }
 
