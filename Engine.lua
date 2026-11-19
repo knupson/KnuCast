@@ -288,9 +288,18 @@ ns:RegisterEvent('SPELLS_CHANGED', function()
     Engine:UpdateAll()
 end)
 
-ns:RegisterEvent('SPELL_DATA_LOAD_RESULT', function()
-    if ns.Data.hasPendingSpells or not next(ns.Data.bySpellName) then
+ns:RegisterEvent('SPELL_DATA_LOAD_RESULT', function(_, spellID)
+    local needRebuild = ns.Data.hasPendingSpells or not next(ns.Data.bySpellName)
+    local needActionRefresh = ns.Data.hasPendingActionSpells or (next(ns.Data.pendingActionSpells) ~= nil)
+    if needRebuild then
         ns.Data:BuildIndex()
+    end
+    if needActionRefresh and ns.Secret.Accessible(spellID) and type(spellID) == 'number' then
+        if ns.Data.pendingActionSpells[spellID] and ns.Data.GetSpellName(spellID) then
+            ns.Data:ResolveActionSpell(spellID)
+        end
+    end
+    if needRebuild or needActionRefresh then
         Engine:UpdateAll()
     end
 end)

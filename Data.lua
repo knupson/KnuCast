@@ -65,6 +65,8 @@ Data.RULES = {
 
 Data.bySpellName = {}
 Data.hasPendingSpells = false
+Data.pendingActionSpells = {}
+Data.hasPendingActionSpells = false
 
 function Data.GetSpellName(spellID)
     if type(spellID) ~= 'number' then
@@ -100,6 +102,31 @@ local function RequestSpellLoad(spellID)
     if C_Spell and type(C_Spell.RequestLoadSpellData) == 'function' then
         pcall(C_Spell.RequestLoadSpellData, spellID)
     end
+end
+Data.RequestSpellLoad = RequestSpellLoad
+
+function Data:TrackActionSpell(spellID)
+    if type(spellID) ~= 'number' or spellID <= 0 then
+        return
+    end
+    self.pendingActionSpells[spellID] = true
+    self.hasPendingActionSpells = true
+    RequestSpellLoad(spellID)
+end
+
+function Data:ResolveActionSpell(spellID)
+    if type(spellID) ~= 'number' then
+        return
+    end
+    if self.pendingActionSpells[spellID] then
+        self.pendingActionSpells[spellID] = nil
+        self.hasPendingActionSpells = next(self.pendingActionSpells) ~= nil
+    end
+end
+
+function Data:ResetPendingActionSpells()
+    self.pendingActionSpells = {}
+    self.hasPendingActionSpells = false
 end
 
 function Data:BuildIndex()

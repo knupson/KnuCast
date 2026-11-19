@@ -73,7 +73,13 @@ function Buttons.GetSlotSpellName(slot)
     if actionType ~= 'spell' or type(id) ~= 'number' then
         return nil
     end
-    return ns.Data.GetSpellName(id)
+    local name = ns.Data.GetSpellName(id)
+    if not name then
+        ns.Data:TrackActionSpell(id)
+        return nil
+    end
+    ns.Data:ResolveActionSpell(id)
+    return name
 end
 
 function Buttons.GetButtonRules(button)
@@ -187,6 +193,44 @@ function Buttons:CreateOverlay(button)
     return overlay
 end
 
+local KnuCastLABHandle = {}
+Buttons.labHandle = KnuCastLABHandle
+
+local LAB_NAMES = {
+    'LibActionButton-1.0',
+    'LibActionButton-1.0-ElvUI',
+}
+
+local function OnLABButtonUpdate(arg1, arg2, arg3)
+    local button
+    if (type(arg1) == 'table' or type(arg1) == 'userdata') and arg1 ~= KnuCastLABHandle then
+        button = arg1
+    elseif type(arg2) == 'table' or type(arg2) == 'userdata' then
+        button = arg2
+    elseif type(arg3) == 'table' or type(arg3) == 'userdata' then
+        button = arg3
+    end
+    if not button or not Buttons.known[button] then
+        return
+    end
+    if ns.Engine and type(ns.Engine.UpdateButton) == 'function' then
+        ns.Engine:UpdateButton(button)
+    end
+end
+
+function Buttons:SubscribeLAB()
+    if type(LibStub) ~= 'table' and type(LibStub) ~= 'function' then
+        return
+    end
+    for i = 1, #LAB_NAMES do
+        local ok, lib = pcall(LibStub, LAB_NAMES[i], true)
+        if ok and type(lib) == 'table' and type(lib.RegisterCallback) == 'function' then
+            pcall(lib.RegisterCallback, KnuCastLABHandle, 'OnButtonUpdate', OnLABButtonUpdate)
+            pcall(lib.RegisterCallback, KnuCastLABHandle, 'OnButtonState', OnLABButtonUpdate)
+        end
+    end
+end
+
 function Buttons:RegisterButton(button)
     if type(button) ~= 'table' and type(button) ~= 'userdata' then
         return
@@ -198,6 +242,10 @@ function Buttons:RegisterButton(button)
     if not self.overlays[button] then
         self:CreateOverlay(button)
     end
+    local slot = Buttons.GetSlot(button)
+    if slot then
+        Buttons.GetSlotSpellName(slot)
+    end
 end
 
 function Buttons:Discover()
@@ -205,6 +253,8 @@ function Buttons:Discover()
         self.needsDiscovery = true
         return false
     end
+
+    self:SubscribeLAB()
 
     for i = 1, #BLIZZARD_PREFIXES do
         local prefix = BLIZZARD_PREFIXES[i]
@@ -313,4 +363,9 @@ function Buttons:Reset()
     self.known = {}
     self.overlays = {}
     self.needsDiscovery = true
+    if ns.Data and type(ns.Data.ResetPendingActionSpells) == 'function' then
+        ns.Data:ResetPendingActionSpells()
+    end
 end
+
+Buttons:SubscribeLAB()
