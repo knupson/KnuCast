@@ -13,7 +13,7 @@ Soporta botones de Blizzard, ElvUI, Bartender4 y Dominos sin depender de ninguno
 - `/knu cast` (alias `/knu knucast`): muestra el estado actual y la ayuda.
 - `/knu cast glow on|off`: activa o desactiva el borde de brillo.
 - `/knu cast grey on|off`: activa o desactiva la capa gris.
-- `/knu cast sound on|off`: activa o desactiva la alerta sonora al activarse una condición.
+- `/knu cast sound on|off`: activa o desactiva el sonido cuando el objetivo empieza a lanzar (interrupciones) o entra en vida baja (Martillo de cólera, Ejecutar). Apagado por defecto.
 - `/knu cast debug`: imprime el ID de tipo de criatura del objetivo (o `secreto`), estado de lanzamiento, botones detectados y botones con regla.
 - `/knu cast test`: alterna el modo de prueba (muestra brillo en todos los botones con regla hasta volver a ejecutar `/knu cast test`).
 
