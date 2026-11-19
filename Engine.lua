@@ -288,19 +288,63 @@ ns:RegisterEvent('SPELLS_CHANGED', function()
     Engine:UpdateAll()
 end)
 
-ns:RegisterEvent('SPELL_DATA_LOAD_RESULT', function(_, spellID)
-    local needRebuild = ns.Data.hasPendingSpells or not next(ns.Data.bySpellName)
-    local needActionRefresh = ns.Data.hasPendingActionSpells or (next(ns.Data.pendingActionSpells) ~= nil)
-    if needRebuild then
+ns:RegisterEvent('SPELL_DATA_LOAD_RESULT', function(_, spellID, success)
+    if not ns.Secret.Accessible(spellID) or type(spellID) ~= 'number' then
+        return
+    end
+    ns.Data.inFlightSpells[spellID] = nil
+
+    local loadOk
+    if not ns.Secret.Accessible(success) then
+        loadOk = false
+    elseif success == false then
+        loadOk = false
+    elseif success == true then
+        loadOk = true
+    else
+        loadOk = ns.Data.GetSpellName(spellID) ~= nil
+    end
+
+    if not loadOk then
+        ns.Data:MarkSpellFailed(spellID)
+        return
+    end
+
+    local spellName = ns.Data.GetSpellName(spellID)
+    if not spellName then
+        ns.Data:MarkSpellFailed(spellID)
+        return
+    end
+
+    local wasPendingRule = ns.Data.pendingRuleSpells[spellID] == true
+    local wasPendingAction = ns.Data.pendingActionSpells[spellID] == true
+    if not wasPendingRule and not wasPendingAction then
+        return
+    end
+
+    if wasPendingRule then
         ns.Data:BuildIndex()
     end
-    if needActionRefresh and ns.Secret.Accessible(spellID) and type(spellID) == 'number' then
-        if ns.Data.pendingActionSpells[spellID] and ns.Data.GetSpellName(spellID) then
-            ns.Data:ResolveActionSpell(spellID)
-        end
+    if wasPendingAction then
+        ns.Data:ResolveActionSpell(spellID)
     end
-    if needRebuild or needActionRefresh then
-        Engine:UpdateAll()
+
+    for i = 1, #ns.Buttons.list do
+        local btn = ns.Buttons.list[i]
+        local slot = ns.Buttons.GetSlot(btn)
+        local slotSpellID = slot and ns.Buttons.GetSlotSpellID(slot)
+        if slotSpellID then
+            local match = (slotSpellID == spellID)
+            if not match and wasPendingRule then
+                local slotSpellName = ns.Data.GetSpellName(slotSpellID)
+                if slotSpellName and ns.Data.bySpellName[slotSpellName] then
+                    match = true
+                end
+            end
+            if match then
+                Engine:UpdateButton(btn)
+            end
+        end
     end
 end)
 

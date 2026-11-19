@@ -63,10 +63,15 @@ Data.RULES = {
     { id = 772, class = 'WARRIOR', kind = 'debuff', debuff = { 772 }, source = 'https://www.wowhead.com/classic/spell=772' },
 }
 
+Data.MAX_SPELL_REQUESTS = 2
 Data.bySpellName = {}
+Data.pendingRuleSpells = {}
 Data.hasPendingSpells = false
 Data.pendingActionSpells = {}
 Data.hasPendingActionSpells = false
+Data.inFlightSpells = {}
+Data.spellRequestCount = {}
+Data.failedSpells = {}
 
 function Data.GetSpellName(spellID)
     if type(spellID) ~= 'number' then
@@ -99,38 +104,94 @@ function Data.GetPlayerClass()
 end
 
 local function RequestSpellLoad(spellID)
+    if type(spellID) ~= 'number' or spellID <= 0 then
+        return false
+    end
+    if Data.inFlightSpells[spellID] then
+        return false
+    end
+    local count = Data.spellRequestCount[spellID] or 0
+    if count >= Data.MAX_SPELL_REQUESTS then
+        return false
+    end
+    Data.spellRequestCount[spellID] = count + 1
+    Data.inFlightSpells[spellID] = true
     if C_Spell and type(C_Spell.RequestLoadSpellData) == 'function' then
         pcall(C_Spell.RequestLoadSpellData, spellID)
     end
+    return true
 end
 Data.RequestSpellLoad = RequestSpellLoad
 
+function Data:CanRetrySpell(spellID)
+    if type(spellID) ~= 'number' or spellID <= 0 then
+        return false
+    end
+    if self.inFlightSpells[spellID] then
+        return true
+    end
+    return (self.spellRequestCount[spellID] or 0) < self.MAX_SPELL_REQUESTS
+end
+
 function Data:TrackActionSpell(spellID)
     if type(spellID) ~= 'number' or spellID <= 0 then
-        return
+        return false
+    end
+    if not self:CanRetrySpell(spellID) then
+        if self.pendingActionSpells[spellID] then
+            self.pendingActionSpells[spellID] = nil
+            self.hasPendingActionSpells = next(self.pendingActionSpells) ~= nil
+        end
+        return false
     end
     self.pendingActionSpells[spellID] = true
     self.hasPendingActionSpells = true
     RequestSpellLoad(spellID)
+    return true
 end
 
 function Data:ResolveActionSpell(spellID)
     if type(spellID) ~= 'number' then
         return
     end
+    self.inFlightSpells[spellID] = nil
+    self.failedSpells[spellID] = nil
     if self.pendingActionSpells[spellID] then
         self.pendingActionSpells[spellID] = nil
         self.hasPendingActionSpells = next(self.pendingActionSpells) ~= nil
     end
 end
 
+function Data:MarkSpellFailed(spellID)
+    if type(spellID) ~= 'number' then
+        return
+    end
+    self.inFlightSpells[spellID] = nil
+    self.failedSpells[spellID] = true
+    if (self.spellRequestCount[spellID] or 0) >= self.MAX_SPELL_REQUESTS then
+        if self.pendingActionSpells[spellID] then
+            self.pendingActionSpells[spellID] = nil
+            self.hasPendingActionSpells = next(self.pendingActionSpells) ~= nil
+        end
+        if self.pendingRuleSpells[spellID] then
+            self.pendingRuleSpells[spellID] = nil
+            self.hasPendingSpells = next(self.pendingRuleSpells) ~= nil
+        end
+    end
+end
+
 function Data:ResetPendingActionSpells()
     self.pendingActionSpells = {}
     self.hasPendingActionSpells = false
+    self.pendingRuleSpells = {}
+    self.inFlightSpells = {}
+    self.spellRequestCount = {}
+    self.failedSpells = {}
 end
 
 function Data:BuildIndex()
     self.bySpellName = {}
+    self.pendingRuleSpells = {}
     self.hasPendingSpells = false
     local playerClass = Data.GetPlayerClass()
     if not playerClass then
@@ -150,18 +211,27 @@ function Data:BuildIndex()
 
             local spellName = Data.GetSpellName(rule.id)
             if not spellName then
-                self.hasPendingSpells = true
-                RequestSpellLoad(rule.id)
+                if self:CanRetrySpell(rule.id) then
+                    self.pendingRuleSpells[rule.id] = true
+                    self.hasPendingSpells = true
+                    RequestSpellLoad(rule.id)
+                end
             else
+                self.inFlightSpells[rule.id] = nil
+                self.failedSpells[rule.id] = nil
                 if rule.debuff then
                     local debuffNames = {}
                     for j = 1, #rule.debuff do
-                        local dName = Data.GetSpellName(rule.debuff[j])
+                        local dID = rule.debuff[j]
+                        local dName = Data.GetSpellName(dID)
                         if dName then
+                            self.inFlightSpells[dID] = nil
+                            self.failedSpells[dID] = nil
                             debuffNames[dName] = true
-                        else
+                        elseif self:CanRetrySpell(dID) then
+                            self.pendingRuleSpells[dID] = true
                             self.hasPendingSpells = true
-                            RequestSpellLoad(rule.debuff[j])
+                            RequestSpellLoad(dID)
                         end
                     end
                     if not next(debuffNames) then

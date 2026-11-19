@@ -59,7 +59,7 @@ function Buttons.GetSlot(button)
     return nil
 end
 
-function Buttons.GetSlotSpellName(slot)
+function Buttons.GetSlotSpellID(slot)
     if type(slot) ~= 'number' or slot <= 0 then
         return nil
     end
@@ -70,7 +70,15 @@ function Buttons.GetSlotSpellName(slot)
     if not ok or not ns.Secret.Accessible(actionType) or not ns.Secret.Accessible(id) then
         return nil
     end
-    if actionType ~= 'spell' or type(id) ~= 'number' then
+    if actionType ~= 'spell' or type(id) ~= 'number' or id <= 0 then
+        return nil
+    end
+    return id
+end
+
+function Buttons.GetSlotSpellName(slot)
+    local id = Buttons.GetSlotSpellID(slot)
+    if not id then
         return nil
     end
     local name = ns.Data.GetSpellName(id)
