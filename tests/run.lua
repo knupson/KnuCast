@@ -122,6 +122,14 @@ do
     AssertEq(ns.Secret.Accessible(secretBool), false, 'Secret.Accessible false for marked boolean')
     AssertEq(ns.Secret.Accessible(secretNum), false, 'Secret.Accessible false for marked number')
 
+    -- Marking true/6 must not taint ordinary primitives, and secret operations must error
+    AssertEq(ns.Secret.Accessible(true), true, 'Ordinary true remains accessible after MarkSecret(true)')
+    AssertEq(ns.Secret.Accessible(6), true, 'Ordinary 6 remains accessible after MarkSecret(6)')
+    local okAdd = pcall(function() return secretNum + 1 end)
+    AssertEq(okAdd, false, 'Arithmetic on secret number proxy raises error')
+    local okConcat = pcall(function() return Stub.MarkSecret('a') .. 'b' end)
+    AssertEq(okConcat, false, 'Concatenation on secret string proxy raises error')
+
     -- Target with secret UnitCanAttack must not glow or grey
     Stub.units.target = { canAttack = secretBool, creatureTypeID = 6 }
     AssertEq(ns.Secret.CanAttack('target'), false, 'CanAttack is false when UnitCanAttack is secret')
@@ -224,25 +232,65 @@ do
     ns.Engine:UpdateAll()
     AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Kick does not glow on uninterruptible cast')
 
-    -- Unknown (secret cast name) + UNIT_SPELLCAST_* event fallback
+    -- Unknown (secret cast name) + UNIT_SPELLCAST_* event fallback with secret unit token proxy
     local secretCastName = Stub.MarkSecret('Heal')
+    local secretTargetUnit = Stub.MarkSecret('target')
+    local secretFocusUnit = Stub.MarkSecret('focus')
     Stub.units.target.casting = { name = secretCastName }
     AssertEq(ns.Secret.IsCasting('target'), nil, 'IsCasting returns nil when cast name is secret')
     ns.Engine:ResetTargetState()
     ns.Engine:UpdateAll()
     AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Kick has no overlay when cast is secret and no event')
 
-    Stub.FireEvent('UNIT_SPELLCAST_START', 'target')
-    AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Kick glows via UNIT_SPELLCAST_START fallback when cast info is secret')
+    -- Non-target secret unit token must be ignored by RegisterUnitEvent filter
+    Stub.FireEvent('UNIT_SPELLCAST_START', secretFocusUnit)
+    AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Kick ignores UNIT_SPELLCAST_START for secret focus unit')
 
-    Stub.FireEvent('UNIT_SPELLCAST_NOT_INTERRUPTIBLE', 'target')
-    AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Kick clears glow on UNIT_SPELLCAST_NOT_INTERRUPTIBLE')
+    -- Secret target unit token on dedicated RegisterUnitEvent('target') frame triggers fallback
+    Stub.FireEvent('UNIT_SPELLCAST_START', secretTargetUnit)
+    AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Kick glows via UNIT_SPELLCAST_START fallback with secret target token')
 
-    Stub.FireEvent('UNIT_SPELLCAST_INTERRUPTIBLE', 'target')
-    AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Kick restores glow on UNIT_SPELLCAST_INTERRUPTIBLE')
+    Stub.FireEvent('UNIT_SPELLCAST_NOT_INTERRUPTIBLE', secretTargetUnit)
+    AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Kick clears glow on UNIT_SPELLCAST_NOT_INTERRUPTIBLE with secret token')
 
-    Stub.FireEvent('UNIT_SPELLCAST_STOP', 'target')
-    AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Kick clears glow on UNIT_SPELLCAST_STOP')
+    Stub.FireEvent('UNIT_SPELLCAST_INTERRUPTIBLE', secretTargetUnit)
+    AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Kick restores glow on UNIT_SPELLCAST_INTERRUPTIBLE with secret token')
+
+    Stub.FireEvent('UNIT_SPELLCAST_STOP', secretTargetUnit)
+    AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Kick clears glow on UNIT_SPELLCAST_STOP with secret token')
+
+    -- Readable notInterruptible=true must be preserved even when cast name is secret
+    Stub.units.target.casting = { name = secretCastName, notInterruptible = true }
+    AssertEq(ns.Secret.IsCasting('target'), false, 'IsCasting returns false when cast name is secret but notInterruptible=true is readable')
+    Stub.FireEvent('UNIT_SPELLCAST_START', secretTargetUnit)
+    AssertEq(ns.Engine:IsTargetCasting('target'), false, 'IsTargetCasting is false when readable notInterruptible=true despite eventCasting=true')
+    AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Kick does not glow when secret-named cast has readable notInterruptible=true')
+
+    -- Stale cached eventNotInterruptible=true must be overridden by current readable interruptible cast
+    ns.Engine.eventCasting = true
+    ns.Engine.eventNotInterruptible = true
+    Stub.units.target.casting = { name = 'Shadow Bolt', notInterruptible = false }
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Engine:IsTargetCasting('target'), true, 'Readable interruptible cast overrides stale eventNotInterruptible=true')
+    AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Kick glows when readable interruptible cast overrides stale event cache')
+
+    -- Readable notInterruptible=false with secret cast name also overrides stale eventNotInterruptible=true
+    ns.Engine.eventCasting = true
+    ns.Engine.eventNotInterruptible = true
+    Stub.units.target.casting = { name = secretCastName, notInterruptible = false }
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Engine:IsTargetCasting('target'), true, 'Readable notInterruptible=false with secret name overrides stale eventNotInterruptible')
+    AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Kick glows when secret-named cast has readable notInterruptible=false')
+
+    -- Fallback unit check when RegisterUnitEvent is unavailable: rejects secret unit token without error
+    ns.Engine:ResetTargetState()
+    Stub.units.target.casting = { name = secretCastName }
+    ns.targetUnitFiltered['UNIT_SPELLCAST_START'] = false
+    ns.FireTargetEvent(ns, 'UNIT_SPELLCAST_START', secretTargetUnit)
+    AssertEq(ns.Engine.eventCasting, nil, 'Fallback unit filter rejects secret unit token safely')
+    ns.FireTargetEvent(ns, 'UNIT_SPELLCAST_START', 'target')
+    AssertEq(ns.Engine.eventCasting, true, 'Fallback unit filter accepts accessible target unit')
+    ns.targetUnitFiltered['UNIT_SPELLCAST_START'] = true
 end
 
 -- 5. Execute via usable action (C_ActionBar.IsUsableAction + fallback IsUsableAction)
@@ -346,6 +394,12 @@ do
     ns.Engine:UpdateAll()
     AssertEq(ns.Buttons.overlays[btn1], nil, 'UpdateAll does not create overlays in combat')
 
+    -- Protected frame mutations in combat must be rejected by the stub
+    local okAttr = pcall(btn1.SetAttribute, btn1, 'action', 2)
+    AssertEq(okAttr, false, 'Protected button rejects SetAttribute during combat lockdown')
+    local okChild = pcall(CreateFrame, 'Frame', nil, btn1)
+    AssertEq(okChild, false, 'Protected button rejects child CreateFrame during combat lockdown')
+
     -- Leave combat and fire PLAYER_REGEN_ENABLED
     Stub.inCombat = false
     Stub.FireEvent('PLAYER_REGEN_ENABLED')
@@ -408,39 +462,160 @@ do
     Assert(#Stub.chatMessages >= beforeMsgs + 3, 'debug and status commands print chat lines')
 end
 
--- 10. Sound once per transition
+-- 10. Sound only for interrupt and execute (once per transition); silence for types and debuff
 do
+    -- 10a. Silence for creature-type transitions (types)
     ResetTestEnvironment('PALADIN')
     ns.db.sound = true
-    -- Place two Paladin creature-type spells (Exorcism + Holy Wrath) on two buttons
-    local btn1 = CreateFrame('CheckButton', 'ActionButton1')
-    btn1.action = 1
+    local btnType1 = CreateFrame('CheckButton', 'ActionButton1')
+    btnType1.action = 1
     Stub.actions[1] = { type = 'spell', id = 879 } -- Exorcism
-    local btn2 = CreateFrame('CheckButton', 'ActionButton2')
-    btn2.action = 2
+    local btnType2 = CreateFrame('CheckButton', 'ActionButton2')
+    btnType2.action = 2
     Stub.actions[2] = { type = 'spell', id = 2812 } -- Holy Wrath
     ns.Buttons:Discover()
 
-    -- Transition to Undead target: both buttons glow, but only ONE sound must play
-    Stub.units.target = { canAttack = true, creatureTypeID = 6 }
+    Stub.units.target = { canAttack = true, creatureTypeID = 6 } -- Undead
     Stub.FireEvent('PLAYER_TARGET_CHANGED')
-    AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Button 1 glows on Undead')
-    AssertEq(ns.Buttons:GetVisual(btn2), 'glow', 'Button 2 glows on Undead')
-    AssertEq(#Stub.soundsPlayed, 1, 'Exactly one sound played when two buttons transition to glow')
+    AssertEq(ns.Buttons:GetVisual(btnType1), 'glow', 'Exorcism glows on Undead')
+    AssertEq(ns.Buttons:GetVisual(btnType2), 'glow', 'Holy Wrath glows on Undead')
+    AssertEq(#Stub.soundsPlayed, 0, 'No sound played on creature-type transition to glow')
+
+    -- 10b. Silence for missing-debuff transitions (debuff)
+    ResetTestEnvironment('WARLOCK')
+    ns.db.sound = true
+    local btnDebuff = CreateFrame('CheckButton', 'ActionButton1')
+    btnDebuff.action = 1
+    Stub.actions[1] = { type = 'spell', id = 172 } -- Corruption
+    ns.Buttons:Discover()
+
+    Stub.units.target = { canAttack = true, creatureTypeID = 7 }
+    Stub.auras.target = {}
+    Stub.FireEvent('PLAYER_TARGET_CHANGED')
+    AssertEq(ns.Buttons:GetVisual(btnDebuff), 'glow', 'Corruption glows when debuff is missing')
+    AssertEq(#Stub.soundsPlayed, 0, 'No sound played on debuff transition to glow')
+
+    -- 10c. Sound once per transition for interrupt (even with two interrupt buttons)
+    ResetTestEnvironment('WARRIOR')
+    ns.db.sound = true
+    local btnInt1 = CreateFrame('CheckButton', 'ActionButton1')
+    btnInt1.action = 1
+    Stub.actions[1] = { type = 'spell', id = 72 } -- Shield Bash
+    local btnInt2 = CreateFrame('CheckButton', 'ActionButton2')
+    btnInt2.action = 2
+    Stub.actions[2] = { type = 'spell', id = 6552 } -- Pummel
+    ns.Buttons:Discover()
+
+    Stub.units.target = {
+        canAttack = true,
+        creatureTypeID = 7,
+        casting = { name = 'Shadow Bolt', notInterruptible = false },
+    }
+    Stub.FireEvent('UNIT_SPELLCAST_START', 'target')
+    AssertEq(ns.Buttons:GetVisual(btnInt1), 'glow', 'Shield Bash glows on interruptible cast')
+    AssertEq(ns.Buttons:GetVisual(btnInt2), 'glow', 'Pummel glows on interruptible cast')
+    AssertEq(#Stub.soundsPlayed, 1, 'Exactly one sound played when two interrupt buttons transition to glow')
 
     -- Repeated updates without state change must NOT play another sound
     Stub.FireEvent('UNIT_AURA', 'target')
     Stub.FireEvent('ACTIONBAR_UPDATE_USABLE')
-    AssertEq(#Stub.soundsPlayed, 1, 'No additional sound when state has not transitioned')
+    AssertEq(#Stub.soundsPlayed, 1, 'No additional sound when interrupt state has not transitioned')
 
-    -- Target changes to Beast (no glow), then back to Undead (glow again) -> second sound
-    Stub.units.target = { canAttack = true, creatureTypeID = 1 }
-    Stub.FireEvent('PLAYER_TARGET_CHANGED')
-    AssertEq(#Stub.soundsPlayed, 1, 'No sound when transitioning to grey')
+    -- Cast stops (no glow), then new cast starts (glow again) -> second sound
+    Stub.units.target.casting = nil
+    Stub.FireEvent('UNIT_SPELLCAST_STOP', 'target')
+    AssertEq(#Stub.soundsPlayed, 1, 'No sound when cast stops')
 
-    Stub.units.target = { canAttack = true, creatureTypeID = 6 }
-    Stub.FireEvent('PLAYER_TARGET_CHANGED')
-    AssertEq(#Stub.soundsPlayed, 2, 'Second sound played on new transition to glow')
+    Stub.units.target.casting = { name = 'Shadow Bolt', notInterruptible = false }
+    Stub.FireEvent('UNIT_SPELLCAST_START', 'target')
+    AssertEq(#Stub.soundsPlayed, 2, 'Second sound played on new interrupt transition to glow')
+
+    -- 10d. Sound for execute transition
+    ResetTestEnvironment('PALADIN')
+    ns.db.sound = true
+    local btnExec = CreateFrame('CheckButton', 'ActionButton1')
+    btnExec.action = 1
+    Stub.actions[1] = { type = 'spell', id = 24275 } -- Hammer of Wrath
+    ns.Buttons:Discover()
+    Stub.units.target = { canAttack = true, creatureTypeID = 7 }
+    Stub.usableActions[1] = true
+    Stub.FireEvent('ACTION_USABLE_CHANGED')
+    AssertEq(ns.Buttons:GetVisual(btnExec), 'glow', 'Hammer of Wrath glows when usable')
+    AssertEq(#Stub.soundsPlayed, 1, 'Sound played on execute transition to glow')
+end
+
+-- 11. LibActionButton OnButtonUpdate / OnButtonState callback refresh (in and out of combat)
+do
+    ResetTestEnvironment('PALADIN')
+    local callbacks = {}
+    local lab = LibStub:NewLibrary('LibActionButton-1.0', 99)
+    function lab.RegisterCallback(target, event, handler)
+        callbacks[event] = { target = target, handler = handler }
+    end
+    local function FireLAB(event, button)
+        local entry = callbacks[event]
+        if entry and type(entry.handler) == 'function' then
+            entry.handler(event, button)
+        end
+    end
+
+    local btnLab = CreateFrame('CheckButton', 'ElvUI_Bar1Button1')
+    btnLab._state_type = 'action'
+    btnLab._state_action = 1
+    Stub.actions[1] = { type = 'spell', id = 879 } -- Exorcism
+    Stub.actions[2] = nil
+
+    ns.Buttons:Discover()
+    Assert(callbacks.OnButtonUpdate ~= nil, 'Subscribed to LibActionButton OnButtonUpdate')
+    Assert(callbacks.OnButtonState ~= nil, 'Subscribed to LibActionButton OnButtonState')
+
+    Stub.units.target = { canAttack = true, creatureTypeID = 6 } -- Undead
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btnLab), 'glow', 'LAB button glows on Undead initially')
+
+    -- Enter combat: existing overlay must refresh on LAB state change without creating frames
+    Stub.inCombat = true
+    btnLab._state_action = 2 -- paged to empty slot
+    FireLAB('OnButtonUpdate', btnLab)
+    AssertEq(ns.Buttons:GetVisual(btnLab), 'none', 'LAB button clears glow when _state_action pages to empty slot')
+
+    btnLab._state_action = 1 -- paged back to Exorcism slot
+    FireLAB('OnButtonState', btnLab)
+    AssertEq(ns.Buttons:GetVisual(btnLab), 'glow', 'LAB button restores glow on OnButtonState')
+
+    btnLab._state_type = 'macro' -- switched to macro state
+    FireLAB('OnButtonUpdate', btnLab)
+    AssertEq(ns.Buttons:GetVisual(btnLab), 'none', 'LAB button clears glow when switched to macro state')
+    Stub.inCombat = false
+end
+
+-- 12. Unresolved higher-rank action spell ID requested, tracked, and refreshed on SPELL_DATA_LOAD_RESULT
+do
+    ResetTestEnvironment('PALADIN')
+    -- Base rule 879 (Exorcism) is already indexed, so hasPendingSpells is false
+    AssertEq(ns.Data.hasPendingSpells, false, 'Base rules resolved with no pending rule spells')
+
+    -- Remove higher-rank Exorcism (5614) from spell cache before placing it on a button
+    Stub.spells[5614] = nil
+    Stub.lastRequestedSpell = nil
+
+    local btn1 = CreateFrame('CheckButton', 'ActionButton1')
+    btn1.action = 1
+    Stub.actions[1] = { type = 'spell', id = 5614 }
+    Stub.units.target = { canAttack = true, creatureTypeID = 6 } -- Undead
+
+    ns.Buttons:Discover()
+    ns.Engine:UpdateAll()
+    AssertEq(Stub.lastRequestedSpell, 5614, 'RequestLoadSpellData called for uncached rank 5614')
+    AssertEq(ns.Data.hasPendingActionSpells, true, 'hasPendingActionSpells is true while 5614 is uncached')
+    AssertEq(ns.Data.pendingActionSpells[5614], true, 'Spell 5614 tracked in pendingActionSpells')
+    AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'No overlay before rank 5614 data loads')
+
+    -- Simulate async spell data load completion for rank 5614
+    Stub.spells[5614] = 'Exorcism'
+    Stub.FireEvent('SPELL_DATA_LOAD_RESULT', 5614, true)
+    AssertEq(ns.Data.hasPendingActionSpells, false, 'hasPendingActionSpells cleared once 5614 resolves')
+    AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Overlay refreshed to glow when rank 5614 loads')
 end
 
 print(string.format('%d passed, %d failed (0 failures required)', passed, failed))

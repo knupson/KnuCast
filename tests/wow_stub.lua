@@ -86,16 +86,36 @@ function _G.hooksecurefunc(tbl, name, fn)
     end
 end
 
+local SECRET_MT = {
+    __index = function() error('Attempt to index secret value') end,
+    __newindex = function() error('Attempt to modify secret value') end,
+    __add = function() error('Attempt to do arithmetic on secret value') end,
+    __sub = function() error('Attempt to do arithmetic on secret value') end,
+    __mul = function() error('Attempt to do arithmetic on secret value') end,
+    __div = function() error('Attempt to do arithmetic on secret value') end,
+    __mod = function() error('Attempt to do arithmetic on secret value') end,
+    __pow = function() error('Attempt to do arithmetic on secret value') end,
+    __unm = function() error('Attempt to do arithmetic on secret value') end,
+    __concat = function() error('Attempt to concatenate secret value') end,
+    __len = function() error('Attempt to get length of secret value') end,
+    __lt = function() error('Attempt to compare secret value') end,
+    __le = function() error('Attempt to compare secret value') end,
+    __call = function() error('Attempt to call secret value') end,
+    __tostring = function() error('Attempt to convert secret value to string') end,
+}
+
 function Stub.MarkSecret(v)
-    if v == nil then
-        v = setmetatable({}, {
-            __index = function() error('Attempt to index secret value') end,
-            __add = function() error('Attempt to do arithmetic on secret value') end,
-            __concat = function() error('Attempt to concatenate secret value') end,
-        })
+    local proxy = setmetatable({}, SECRET_MT)
+    Stub.secrets[proxy] = { value = v }
+    return proxy
+end
+
+function Stub.UnwrapSecret(v)
+    local info = v ~= nil and Stub.secrets[v]
+    if info then
+        return info.value, true
     end
-    Stub.secrets[v] = true
-    return v
+    return v, false
 end
 
 function Stub.ClearSecrets()
@@ -106,7 +126,7 @@ function _G.issecretvalue(v)
     if v == nil then
         return false
     end
-    return Stub.secrets[v] == true
+    return Stub.secrets[v] ~= nil
 end
 
 function _G.canaccessvalue(v)
@@ -169,15 +189,23 @@ local function NewAnimationGroup(parent)
 end
 
 function _G.CreateFrame(frameType, name, parent, template)
+    local isProtected = (frameType == 'CheckButton')
+        or (type(template) == 'string' and (template:find('Secure') ~= nil or template:find('ActionButton') ~= nil))
+    if Stub.inCombat and (isProtected or (parent and parent._protected)) then
+        error('Attempt to create frame on protected parent during combat lockdown')
+    end
+
     local f = {
         _type = frameType or 'Frame',
         _name = name,
         _parent = parent,
         _template = template,
+        _protected = isProtected,
         _shown = true,
         _alpha = 1,
         _level = 1,
         _events = {},
+        _unitEvents = {},
         _scripts = {},
         _hooks = {},
         _attributes = {},
@@ -188,20 +216,39 @@ function _G.CreateFrame(frameType, name, parent, template)
     if parent and type(parent._children) == 'table' then
         parent._children[#parent._children + 1] = f
     end
+    local function CheckProtected(self, op)
+        if Stub.inCombat and self._protected then
+            error('Attempt to call ' .. tostring(op) .. ' on protected frame during combat lockdown')
+        end
+    end
     function f:GetName() return self._name end
     function f:GetParent() return self._parent end
-    function f:Show() self._shown = true end
-    function f:Hide() self._shown = false end
+    function f:IsProtected() return self._protected == true end
+    function f:SetProtected(val) self._protected = val == true end
+    function f:Show() CheckProtected(self, 'Show'); self._shown = true end
+    function f:Hide() CheckProtected(self, 'Hide'); self._shown = false end
     function f:IsShown() return self._shown end
     function f:SetAlpha(a) self._alpha = a end
     function f:GetAlpha() return self._alpha end
     function f:SetFrameLevel(lvl) self._level = lvl end
     function f:GetFrameLevel() return self._level end
-    function f:SetAllPoints(anchor) self._allPoints = anchor or self._parent end
-    function f:SetPoint(...) self._points[#self._points + 1] = { ... } end
-    function f:ClearAllPoints() self._points = {}; self._allPoints = nil end
-    function f:RegisterEvent(event) self._events[event] = true end
-    function f:UnregisterEvent(event) self._events[event] = nil end
+    function f:SetAllPoints(anchor) CheckProtected(self, 'SetAllPoints'); self._allPoints = anchor or self._parent end
+    function f:SetPoint(...) CheckProtected(self, 'SetPoint'); self._points[#self._points + 1] = { ... } end
+    function f:ClearAllPoints() CheckProtected(self, 'ClearAllPoints'); self._points = {}; self._allPoints = nil end
+    function f:RegisterEvent(event)
+        self._events[event] = true
+        self._unitEvents[event] = nil
+        return true
+    end
+    function f:RegisterUnitEvent(event, unit1, unit2)
+        self._events[event] = true
+        self._unitEvents[event] = { unit1, unit2 }
+        return true
+    end
+    function f:UnregisterEvent(event)
+        self._events[event] = nil
+        self._unitEvents[event] = nil
+    end
     function f:IsEventRegistered(event) return self._events[event] == true end
     function f:SetScript(scriptName, fn) self._scripts[scriptName] = fn end
     function f:GetScript(scriptName) return self._scripts[scriptName] end
@@ -210,7 +257,10 @@ function _G.CreateFrame(frameType, name, parent, template)
         table.insert(self._hooks[scriptName], fn)
     end
     function f:GetAttribute(attr) return self._attributes[attr] end
-    function f:SetAttribute(attr, val) self._attributes[attr] = val end
+    function f:SetAttribute(attr, val)
+        CheckProtected(self, 'SetAttribute')
+        self._attributes[attr] = val
+    end
     function f:CreateTexture(texName, layer)
         local tex = NewTexture(self, texName, layer)
         self._textures[#self._textures + 1] = tex
@@ -228,10 +278,25 @@ function _G.CreateFrame(frameType, name, parent, template)
 end
 
 function Stub.FireEvent(event, ...)
+    local unit = ...
+    local rawUnit = Stub.UnwrapSecret(unit)
     for i = 1, #Stub.frames do
         local f = Stub.frames[i]
         if f._events[event] and type(f._scripts.OnEvent) == 'function' then
-            f._scripts.OnEvent(f, event, ...)
+            local unitFilter = f._unitEvents and f._unitEvents[event]
+            local allowed = true
+            if unitFilter then
+                allowed = false
+                for j = 1, #unitFilter do
+                    if unitFilter[j] ~= nil and unitFilter[j] == rawUnit then
+                        allowed = true
+                        break
+                    end
+                end
+            end
+            if allowed then
+                f._scripts.OnEvent(f, event, ...)
+            end
         end
     end
 end
@@ -278,6 +343,8 @@ Stub.DEFAULT_SPELLS = {
 Stub.spells = {}
 function Stub.ResetSpells()
     Stub.spells = {}
+    Stub.lastRequestedSpell = nil
+    Stub.requestedSpells = {}
     for k, v in pairs(Stub.DEFAULT_SPELLS) do
         Stub.spells[k] = v
     end
@@ -290,6 +357,7 @@ _G.C_Spell = {
     end,
     RequestLoadSpellData = function(spellID)
         Stub.lastRequestedSpell = spellID
+        Stub.requestedSpells[spellID] = true
     end,
 }
 
