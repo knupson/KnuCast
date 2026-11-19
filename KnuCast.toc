@@ -1,0 +1,20 @@
+## Interface: 16001
+## Title: |cffecd9bdKNU|r|cffffa82eCast|r
+## Notes: Action button glow and grey overlays for situational spells.
+## Notes-esES: Brillo y capa gris en botones de acción para hechizos situacionales.
+## Notes-esMX: Brillo y capa gris en botones de acción para hechizos situacionales.
+## Author: Alejandro Benzoni (KnuPwns)
+## Version: 0.1.0
+## SavedVariables: KnuCastDB
+## X-License: MIT
+## X-Website: https://knunet.com
+## X-Category: Combat
+
+Libs\KnuLib\KnuLib.xml
+Locales\Locales.lua
+Core.lua
+Secret.lua
+Data.lua
+Buttons.lua
+Engine.lua
+Commands.lua
