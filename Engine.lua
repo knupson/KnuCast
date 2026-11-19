@@ -8,6 +8,7 @@ local Engine = {
     eventCasting = nil,
     eventNotInterruptible = false,
     prevActiveKinds = {},
+    buttonActiveKinds = {},
 }
 ns.Engine = Engine
 
@@ -20,6 +21,7 @@ function Engine:ResetTargetState()
     self.eventCasting = nil
     self.eventNotInterruptible = false
     self.prevActiveKinds = {}
+    self.buttonActiveKinds = {}
 end
 
 function Engine:IsTargetCasting(unit)
@@ -176,6 +178,57 @@ function Engine:PlayAlertSound()
     return true
 end
 
+function Engine:EvaluateButton(btn)
+    local rules, slot = ns.Buttons.GetButtonRules(btn)
+    if not rules then
+        self.buttonActiveKinds[btn] = nil
+        ns.Buttons:SetVisual(btn, 'none')
+        return
+    end
+    local state, yesKinds = self:EvaluateRules(rules, slot, 'target')
+    local eligibleKinds = nil
+    for kind in pairs(yesKinds) do
+        if SOUND_ELIGIBLE_KINDS[kind] then
+            if not eligibleKinds then
+                eligibleKinds = {}
+            end
+            eligibleKinds[kind] = true
+        end
+    end
+    self.buttonActiveKinds[btn] = eligibleKinds
+    local visual = Engine.StateToVisual(state)
+    ns.Buttons:SetVisual(btn, visual)
+end
+
+function Engine:CheckSoundTransition()
+    local activeKinds = {}
+    for i = 1, #ns.Buttons.list do
+        local btn = ns.Buttons.list[i]
+        local kinds = self.buttonActiveKinds[btn]
+        if kinds then
+            for kind in pairs(kinds) do
+                if SOUND_ELIGIBLE_KINDS[kind] then
+                    activeKinds[kind] = true
+                end
+            end
+        end
+    end
+
+    local transitioned = false
+    local prev = self.prevActiveKinds or {}
+    for kind in pairs(activeKinds) do
+        if not prev[kind] then
+            transitioned = true
+            break
+        end
+    end
+    self.prevActiveKinds = activeKinds
+
+    if transitioned then
+        self:PlayAlertSound()
+    end
+end
+
 function Engine:UpdateButton(btn)
     if not btn or not ns.Buttons.known[btn] then
         return
@@ -197,18 +250,14 @@ function Engine:UpdateButton(btn)
     end
 
     if not ns.Secret.CanAttack('target') then
+        self.buttonActiveKinds[btn] = nil
         ns.Buttons:SetVisual(btn, 'none')
+        self:ResetTargetState()
         return
     end
 
-    local rules, slot = ns.Buttons.GetButtonRules(btn)
-    if not rules then
-        ns.Buttons:SetVisual(btn, 'none')
-    else
-        local state = self:EvaluateRules(rules, slot, 'target')
-        local visual = Engine.StateToVisual(state)
-        ns.Buttons:SetVisual(btn, visual)
-    end
+    self:EvaluateButton(btn)
+    self:CheckSoundTransition()
 end
 
 function Engine:UpdateAll()
@@ -236,37 +285,12 @@ function Engine:UpdateAll()
         return
     end
 
-    local activeKinds = {}
+    self.buttonActiveKinds = {}
     for i = 1, #ns.Buttons.list do
-        local btn = ns.Buttons.list[i]
-        local rules, slot = ns.Buttons.GetButtonRules(btn)
-        if not rules then
-            ns.Buttons:SetVisual(btn, 'none')
-        else
-            local state, yesKinds = self:EvaluateRules(rules, slot, 'target')
-            for kind in pairs(yesKinds) do
-                if SOUND_ELIGIBLE_KINDS[kind] then
-                    activeKinds[kind] = true
-                end
-            end
-            local visual = Engine.StateToVisual(state)
-            ns.Buttons:SetVisual(btn, visual)
-        end
+        self:EvaluateButton(ns.Buttons.list[i])
     end
 
-    local transitioned = false
-    local prev = self.prevActiveKinds or {}
-    for kind in pairs(activeKinds) do
-        if not prev[kind] then
-            transitioned = true
-            break
-        end
-    end
-    self.prevActiveKinds = activeKinds
-
-    if transitioned then
-        self:PlayAlertSound()
-    end
+    self:CheckSoundTransition()
 end
 
 ns:RegisterEvent('PLAYER_ENTERING_WORLD', function()
