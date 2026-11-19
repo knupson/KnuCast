@@ -11,6 +11,11 @@ local Engine = {
 }
 ns.Engine = Engine
 
+local SOUND_ELIGIBLE_KINDS = {
+    interrupt = true,
+    execute = true,
+}
+
 function Engine:ResetTargetState()
     self.eventCasting = nil
     self.eventNotInterruptible = false
@@ -19,15 +24,24 @@ end
 
 function Engine:IsTargetCasting(unit)
     unit = unit or 'target'
-    local direct = ns.Secret.IsCasting(unit)
+    local direct, directNotInterruptible = ns.Secret.IsCasting(unit)
+    if directNotInterruptible ~= nil then
+        self.eventNotInterruptible = directNotInterruptible
+    end
     if direct ~= nil then
-        if direct == true and self.eventNotInterruptible then
+        if direct == false then
+            return false
+        end
+        if directNotInterruptible == nil and self.eventNotInterruptible then
             return false
         end
         return direct
     end
     if self.eventCasting == true then
-        if self.eventNotInterruptible then
+        if directNotInterruptible == true then
+            return false
+        end
+        if directNotInterruptible == nil and self.eventNotInterruptible then
             return false
         end
         return true
@@ -162,6 +176,41 @@ function Engine:PlayAlertSound()
     return true
 end
 
+function Engine:UpdateButton(btn)
+    if not btn or not ns.Buttons.known[btn] then
+        return
+    end
+    if not ns.Buttons.overlays[btn] and ns.Buttons.IsInCombat() then
+        ns.Buttons.needsDiscovery = true
+        return
+    end
+
+    if self.testMode then
+        local showGlow = not (ns.db and ns.db.glow == false)
+        local rules = ns.Buttons.GetButtonRules(btn)
+        if rules and showGlow then
+            ns.Buttons:SetVisual(btn, 'glow')
+        else
+            ns.Buttons:SetVisual(btn, 'none')
+        end
+        return
+    end
+
+    if not ns.Secret.CanAttack('target') then
+        ns.Buttons:SetVisual(btn, 'none')
+        return
+    end
+
+    local rules, slot = ns.Buttons.GetButtonRules(btn)
+    if not rules then
+        ns.Buttons:SetVisual(btn, 'none')
+    else
+        local state = self:EvaluateRules(rules, slot, 'target')
+        local visual = Engine.StateToVisual(state)
+        ns.Buttons:SetVisual(btn, visual)
+    end
+end
+
 function Engine:UpdateAll()
     if ns.Buttons.needsDiscovery and not ns.Buttons.IsInCombat() then
         ns.Buttons:Discover()
@@ -196,7 +245,9 @@ function Engine:UpdateAll()
         else
             local state, yesKinds = self:EvaluateRules(rules, slot, 'target')
             for kind in pairs(yesKinds) do
-                activeKinds[kind] = true
+                if SOUND_ELIGIBLE_KINDS[kind] then
+                    activeKinds[kind] = true
+                end
             end
             local visual = Engine.StateToVisual(state)
             ns.Buttons:SetVisual(btn, visual)
@@ -216,16 +267,6 @@ function Engine:UpdateAll()
     if transitioned then
         self:PlayAlertSound()
     end
-end
-
-local function IsTargetEventUnit(unit)
-    if unit == nil then
-        return true
-    end
-    if not ns.Secret.Accessible(unit) then
-        return false
-    end
-    return unit == 'target'
 end
 
 ns:RegisterEvent('PLAYER_ENTERING_WORLD', function()
@@ -280,10 +321,8 @@ local UNIT_RECOMPUTE_EVENTS = {
     'UNIT_AURA',
 }
 for i = 1, #UNIT_RECOMPUTE_EVENTS do
-    ns:RegisterEvent(UNIT_RECOMPUTE_EVENTS[i], function(_, unit)
-        if IsTargetEventUnit(unit) then
-            Engine:UpdateAll()
-        end
+    ns:RegisterTargetEvent(UNIT_RECOMPUTE_EVENTS[i], function()
+        Engine:UpdateAll()
     end)
 end
 
@@ -292,12 +331,10 @@ local CAST_START_EVENTS = {
     'UNIT_SPELLCAST_CHANNEL_START',
 }
 for i = 1, #CAST_START_EVENTS do
-    ns:RegisterEvent(CAST_START_EVENTS[i], function(_, unit)
-        if IsTargetEventUnit(unit) then
-            Engine.eventCasting = true
-            Engine.eventNotInterruptible = false
-            Engine:UpdateAll()
-        end
+    ns:RegisterTargetEvent(CAST_START_EVENTS[i], function()
+        Engine.eventCasting = true
+        Engine.eventNotInterruptible = false
+        Engine:UpdateAll()
     end)
 end
 
@@ -308,25 +345,19 @@ local CAST_STOP_EVENTS = {
     'UNIT_SPELLCAST_CHANNEL_STOP',
 }
 for i = 1, #CAST_STOP_EVENTS do
-    ns:RegisterEvent(CAST_STOP_EVENTS[i], function(_, unit)
-        if IsTargetEventUnit(unit) then
-            Engine.eventCasting = false
-            Engine.eventNotInterruptible = false
-            Engine:UpdateAll()
-        end
+    ns:RegisterTargetEvent(CAST_STOP_EVENTS[i], function()
+        Engine.eventCasting = false
+        Engine.eventNotInterruptible = false
+        Engine:UpdateAll()
     end)
 end
 
-ns:RegisterEvent('UNIT_SPELLCAST_NOT_INTERRUPTIBLE', function(_, unit)
-    if IsTargetEventUnit(unit) then
-        Engine.eventNotInterruptible = true
-        Engine:UpdateAll()
-    end
+ns:RegisterTargetEvent('UNIT_SPELLCAST_NOT_INTERRUPTIBLE', function()
+    Engine.eventNotInterruptible = true
+    Engine:UpdateAll()
 end)
 
-ns:RegisterEvent('UNIT_SPELLCAST_INTERRUPTIBLE', function(_, unit)
-    if IsTargetEventUnit(unit) then
-        Engine.eventNotInterruptible = false
-        Engine:UpdateAll()
-    end
+ns:RegisterTargetEvent('UNIT_SPELLCAST_INTERRUPTIBLE', function()
+    Engine.eventNotInterruptible = false
+    Engine:UpdateAll()
 end)

@@ -43,6 +43,10 @@ end
 ns.events = {}
 ns.frame = CreateFrame('Frame', 'KnuCastFrame')
 
+ns.targetEvents = {}
+ns.targetUnitFiltered = {}
+ns.targetFrame = CreateFrame('Frame', 'KnuCastTargetFrame')
+
 function ns:RegisterEvent(event, handler)
     assert(type(event) == 'string', 'Expected event name')
     assert(type(handler) == 'function', 'Expected event handler function')
@@ -51,6 +55,26 @@ function ns:RegisterEvent(event, handler)
         list = {}
         self.events[event] = list
         pcall(self.frame.RegisterEvent, self.frame, event)
+    end
+    list[#list + 1] = handler
+end
+
+function ns:RegisterTargetEvent(event, handler)
+    assert(type(event) == 'string', 'Expected event name')
+    assert(type(handler) == 'function', 'Expected event handler function')
+    local list = self.targetEvents[event]
+    if not list then
+        list = {}
+        self.targetEvents[event] = list
+        local unitFiltered = false
+        if type(self.targetFrame.RegisterUnitEvent) == 'function' then
+            local ok, res = pcall(self.targetFrame.RegisterUnitEvent, self.targetFrame, event, 'target')
+            unitFiltered = ok and res ~= false
+        end
+        if not unitFiltered then
+            pcall(self.targetFrame.RegisterEvent, self.targetFrame, event)
+        end
+        self.targetUnitFiltered[event] = unitFiltered
     end
     list[#list + 1] = handler
 end
@@ -65,13 +89,38 @@ function ns:FireEvent(event, ...)
     end
 end
 
+function ns:FireTargetEvent(event, unit)
+    local list = self.targetEvents[event]
+    if not list then
+        return
+    end
+    if not self.targetUnitFiltered[event] then
+        if not (ns.Secret and ns.Secret.Accessible(unit)) then
+            return
+        end
+        if unit ~= 'target' then
+            return
+        end
+    end
+    for i = 1, #list do
+        list[i](event)
+    end
+end
+
 ns.frame:SetScript('OnEvent', function(_, event, ...)
     ns:FireEvent(event, ...)
+end)
+
+ns.targetFrame:SetScript('OnEvent', function(_, event, unit)
+    ns:FireTargetEvent(event, unit)
 end)
 
 ns:InitDB()
 
 ns:RegisterEvent('ADDON_LOADED', function(_, loadedName)
+    if ns.Secret and not ns.Secret.Accessible(loadedName) then
+        return
+    end
     if loadedName == nil or loadedName == ns.addonName then
         ns:InitDB()
     end

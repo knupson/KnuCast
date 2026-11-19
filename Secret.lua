@@ -59,47 +59,53 @@ end
 
 local function ReadCastInfo(fn, unit)
     if type(fn) ~= 'function' then
-        return false, false, nil
+        return false, false, nil, nil
     end
     local ok, name, _, _, _, _, _, r7, r8 = pcall(fn, unit)
     if not ok then
-        return true, true, nil
+        return true, true, nil, nil
     end
+
+    -- UnitCastingInfo returns notInterruptible at #8; UnitChannelInfo at #7 (or #8).
+    local notInterruptible = nil
+    if Secret.Accessible(r8) and type(r8) == 'boolean' then
+        notInterruptible = r8
+    elseif Secret.Accessible(r7) and type(r7) == 'boolean' then
+        notInterruptible = r7
+    end
+
     if not Secret.Accessible(name) then
-        return true, true, nil
+        if notInterruptible == true then
+            return true, true, false, true
+        end
+        return true, true, nil, notInterruptible
     end
     if name == nil or name == false then
-        return true, false, false
+        return true, false, false, nil
     end
-    -- UnitCastingInfo returns notInterruptible at #8; UnitChannelInfo at #7 (or #8).
-    if Secret.Accessible(r8) and type(r8) == 'boolean' then
-        if r8 == true then
-            return true, true, false
-        end
-    elseif Secret.Accessible(r7) and type(r7) == 'boolean' then
-        if r7 == true then
-            return true, true, false
-        end
+    if notInterruptible == true then
+        return true, true, false, true
     end
-    return true, true, true
+    return true, true, true, notInterruptible
 end
 
 -- Returns true (interruptible cast/channel active), false (not casting or
--- uninterruptible), or nil (secret/unknown).
+-- uninterruptible), or nil (secret/unknown). Second return is readable
+-- notInterruptible boolean when available, or nil.
 function Secret.IsCasting(unit)
     unit = unit or 'target'
-    local hasCastFn, handledCast, castState = ReadCastInfo(UnitCastingInfo, unit)
+    local hasCastFn, handledCast, castState, castNotInt = ReadCastInfo(UnitCastingInfo, unit)
     if handledCast then
-        return castState
+        return castState, castNotInt
     end
-    local hasChanFn, handledChan, chanState = ReadCastInfo(UnitChannelInfo, unit)
+    local hasChanFn, handledChan, chanState, chanNotInt = ReadCastInfo(UnitChannelInfo, unit)
     if handledChan then
-        return chanState
+        return chanState, chanNotInt
     end
     if not hasCastFn and not hasChanFn then
-        return nil
+        return nil, nil
     end
-    return false
+    return false, nil
 end
 
 local function NormalizeSpellNames(spellNames)
