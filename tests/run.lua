@@ -929,6 +929,211 @@ do
     AssertEq(called, true, 'RegisterUnitEvent("player") triggers on "player" event')
 end
 
+
+
+
+-- 15. Counter drift
+do
+    ResetTestEnvironment('WARRIOR')
+    ns.db.sound = true
+    local btn1 = CreateFrame('CheckButton', 'ActionButton1')
+    btn1.action = 1
+    Stub.actions[1] = { type = 'spell', id = 72 } -- Shield Bash
+    local btn2 = CreateFrame('CheckButton', 'ActionButton2')
+    btn2.action = 2
+    Stub.actions[2] = { type = 'spell', id = 6552 } -- Pummel
+    ns.Buttons:Discover()
+
+    Stub.units.target = { canAttack = true, casting = { name = 'Shadow Bolt', notInterruptible = false } }
+    ns.Engine:UpdateAll()
+    AssertEq(#Stub.soundsPlayed, 1, 'Sound played on cast with 2 buttons')
+
+    -- Remove btn1
+    ns.Buttons.known[btn1] = nil
+    ns.Engine:UpdateButton(btn1)
+
+    -- Cast stops -> btn2 clears its contribution, but if btn1 didn't, count would be 1
+    Stub.units.target.casting = nil
+    ns.Engine:UpdateAll()
+    AssertEq(#Stub.soundsPlayed, 1, 'No new sound when cast stops')
+
+    -- Cast starts -> should play sound again (transition from 0 to 1 on btn2)
+    Stub.units.target.casting = { name = 'Shadow Bolt', notInterruptible = false }
+    ns.Engine:UpdateAll()
+    AssertEq(#Stub.soundsPlayed, 2, 'Sound plays again on second cast because removed button released its contribution')
+end
+
+-- 16. Aura stub honours unit AND filter
+do
+    ResetTestEnvironment('PALADIN')
+    local btn1 = CreateFrame('CheckButton', 'ActionButton1')
+    btn1.action = 1
+    Stub.actions[1] = { type = 'spell', id = 20271 } -- Judgement (requires player HELPFUL)
+    ns.Buttons:Discover()
+    Stub.units.target = { canAttack = true }
+    Stub.auras.player = {}
+    Stub.lastAuraUnit = nil
+    Stub.lastAuraFilter = nil
+    ns.Engine:UpdateAll()
+    AssertEq(Stub.lastAuraUnit, 'player', 'Judgement checked player auras')
+    AssertEq(Stub.lastAuraFilter, 'HELPFUL', 'Judgement used HELPFUL filter')
+
+    ResetTestEnvironment('WARLOCK')
+    local btn2 = CreateFrame('CheckButton', 'ActionButton1')
+    btn2.action = 1
+    Stub.actions[1] = { type = 'spell', id = 17962 } -- Conflagrate (requires target HARMFUL|PLAYER)
+    ns.Buttons:Discover()
+    Stub.units.target = { canAttack = true }
+    Stub.auras.target = {}
+    Stub.lastAuraUnit = nil
+    Stub.lastAuraFilter = nil
+    ns.Engine:UpdateAll()
+    AssertEq(Stub.lastAuraUnit, 'target', 'Conflagrate checked target auras')
+    AssertEq(Stub.lastAuraFilter, 'HARMFUL|PLAYER', 'Conflagrate used HARMFUL|PLAYER filter')
+end
+
+-- 17. Partial names
+do
+    ResetTestEnvironment('WARLOCK')
+    Stub.spells[348] = nil
+    Stub.spells[172] = nil
+    ns.Data:BuildIndex()
+    local btn1 = CreateFrame('CheckButton', 'ActionButton1')
+    btn1.action = 1
+    Stub.actions[1] = { type = 'spell', id = 17962 } -- Conflagrate (requires 348 Immolate)
+    local btn2 = CreateFrame('CheckButton', 'ActionButton2')
+    btn2.action = 2
+    Stub.actions[2] = { type = 'spell', id = 172 } -- Corruption (debuff 172)
+    
+    Stub.spells[348] = nil -- Immolate not loaded
+    Stub.spells[172] = nil -- Corruption not loaded
+
+    ns.Buttons:Discover()
+    Stub.units.target = { canAttack = true }
+    Stub.auras.target = {}
+    ns.Engine:UpdateAll()
+    
+    -- Absence of auras should give no mark because names are incomplete
+    AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Conflagrate has no mark when Immolate name is unresolved')
+    AssertEq(ns.Buttons:GetVisual(btn2), 'none', 'Corruption has no mark when its debuff name is unresolved')
+    
+    -- Resolve Immolate
+    Stub.spells[348] = 'Immolate'
+    Stub.FireEvent('SPELL_DATA_LOAD_RESULT', 348, true)
+    
+    -- Now Conflagrate has complete names, absence => grey
+    AssertEq(ns.Buttons:GetVisual(btn1), 'grey', 'Conflagrate turns grey when Immolate resolves and is absent')
+    AssertEq(ns.Buttons:GetVisual(btn2), 'none', 'Corruption still has no mark')
+
+    -- Resolve Corruption
+    Stub.spells[172] = 'Corruption'
+    Stub.FireEvent('SPELL_DATA_LOAD_RESULT', 172, true)
+    AssertEq(ns.Buttons:GetVisual(btn2), 'glow', 'Corruption turns glow when its name resolves and is absent')
+end
+
+-- 18. Aura at index 101
+do
+    ResetTestEnvironment('WARLOCK')
+    Stub.spells[348] = nil
+    Stub.spells[172] = nil
+    ns.Data:BuildIndex()
+    local btn1 = CreateFrame('CheckButton', 'ActionButton1')
+    btn1.action = 1
+    Stub.actions[1] = { type = 'spell', id = 17962 } -- Conflagrate
+    ns.Buttons:Discover()
+    Stub.units.target = { canAttack = true }
+    Stub.auras.target = {}
+    for i = 1, 100 do
+        Stub.auras.target[i] = { name = 'DummyAura' }
+    end
+    -- Index 101 is an unknown aura because the limit is 100
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Aura absence after 100 dummy auras results in UNKNOWN (no mark), not absent')
+end
+
+-- 19. Combat transitions refresh marks
+do
+    ResetTestEnvironment('ROGUE')
+    local btn1 = CreateFrame('CheckButton', 'ActionButton1')
+    btn1.action = 1
+    Stub.actions[1] = { type = 'spell', id = 6770 } -- Sap (outOfCombat)
+    ns.Buttons:Discover()
+    
+    Stub.units.target = { canAttack = true, affectingCombat = false, creatureTypeID = 7 }
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Sap glows on humanoid out of combat')
+    
+    Stub.units.target.affectingCombat = true
+    Stub.FireEvent('PLAYER_REGEN_DISABLED')
+    AssertEq(ns.Buttons:GetVisual(btn1), 'grey', 'Sap greys out on combat transition without target events')
+    
+    Stub.units.target.affectingCombat = false
+    Stub.FireEvent('PLAYER_REGEN_ENABLED')
+    AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Sap glows again on combat end')
+end
+
+-- 20. Native RegisterUnitEvent failure fallback
+do
+    ResetTestEnvironment('PALADIN')
+    local called = false
+    local frame = ns.unitFrames['player']
+    local oldRUE = frame.RegisterUnitEvent
+    frame.RegisterUnitEvent = nil
+    ns:RegisterUnitEvent('player', 'KNUCAST_FALLBACK_TEST', function() called = true end)
+    frame.RegisterUnitEvent = oldRUE
+    
+    Stub.FireEvent('KNUCAST_FALLBACK_TEST', 'target')
+    AssertEq(called, false, 'Fallback ignores wrong unit')
+
+    Stub.FireEvent('KNUCAST_FALLBACK_TEST', 'player')
+    AssertEq(called, true, 'Fallback triggers on correct unit')
+    
+    called = false
+    local secretUnit = Stub.MarkSecret('player')
+    Stub.FireEvent('KNUCAST_FALLBACK_TEST', secretUnit)
+    AssertEq(called, false, 'Fallback safely ignores secret unit token without error')
+end
+
+-- 21. UNIT_AURA with secret payload
+do
+    ResetTestEnvironment('PALADIN')
+    local btn1 = CreateFrame('CheckButton', 'ActionButton1')
+    btn1.action = 1
+    Stub.actions[1] = { type = 'spell', id = 24275 } -- Hammer of Wrath (just any spell to cause an UpdateAll)
+    ns.Buttons:Discover()
+    Stub.units.target = { canAttack = true, creatureTypeID = 7 }
+    Stub.usableActions[1] = true
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Hammer of Wrath glows')
+    
+    local secretPayload = Stub.MarkSecret('isFullUpdate')
+    local ok = pcall(Stub.FireEvent, 'UNIT_AURA', 'target', secretPayload)
+    AssertEq(ok, true, 'UNIT_AURA with secret payload did not error (handler ignored payload)')
+end
+
+-- 22. Secret UnitPowerMax / missing APIs
+do
+    ResetTestEnvironment('PRIEST')
+    local btn1 = CreateFrame('CheckButton', 'ActionButton1')
+    btn1.action = 1
+    Stub.actions[1] = { type = 'spell', id = 8129 } -- Mana Burn (requires mana)
+    local btn2 = CreateFrame('CheckButton', 'ActionButton2')
+    btn2.action = 2
+    Stub.actions[2] = { type = 'spell', id = 453 } -- Mind Soothe (requires outOfCombat)
+    ns.Buttons:Discover()
+
+    Stub.units.target = { canAttack = true, powerType = 0, powerMax = Stub.MarkSecret(100), creatureTypeID = Stub.MarkSecret(7), affectingCombat = false }
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Mana Burn has no mark when UnitPowerMax is secret')
+
+    local oldUnitAffectingCombat = UnitAffectingCombat
+    _G.UnitAffectingCombat = nil
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btn2), 'none', 'Mind Soothe has no mark when UnitAffectingCombat is missing')
+    _G.UnitAffectingCombat = oldUnitAffectingCombat
+end
+
+
 print(string.format('%d passed, %d failed (0 failures required)', passed, failed))
 if failed > 0 then
     os.exit(1)
