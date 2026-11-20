@@ -283,7 +283,16 @@ function Engine:CheckSoundTransition()
 end
 
 function Engine:UpdateButton(btn)
-    if not btn or not ns.Buttons.known[btn] then
+    if not btn then
+        return
+    end
+    if not ns.Buttons.known[btn] then
+        if self.buttonActiveKinds[btn] then
+            for kind in pairs(self.buttonActiveKinds[btn]) do
+                self.activeKindCounts[kind] = (self.activeKindCounts[kind] or 1) - 1
+            end
+            self.buttonActiveKinds[btn] = nil
+        end
         return
     end
     if not ns.Buttons.overlays[btn] and ns.Buttons.IsInCombat() then
