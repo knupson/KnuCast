@@ -3,7 +3,7 @@
 Addon para World of Warcraft (Forever, interfaz `16001`) que resalta en las barras de acción los hechizos situacionales de tu clase según el estado del objetivo enemigo actual:
 
 - **Brillo animado propio** cuando el hechizo aplica (tipo de criatura válido, rango de ejecución usable, lanzamiento interrumpible o debuff propio ausente).
-- **Capa gris oscura** cuando el hechizo está restringido por tipo de criatura y el objetivo no corresponde.
+- **Capa gris oscura** cuando el hechizo está restringido (tipo de criatura no correspondiente, auras requeridas ausentes, recurso no agotado o si requiere estar fuera de combate).
 - **Sin marca** cuando no hay objetivo atacable o el dato no está disponible.
 
 Soporta botones de Blizzard, ElvUI, Bartender4 y Dominos sin depender de ninguno de ellos.
