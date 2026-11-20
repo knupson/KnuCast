@@ -65,15 +65,27 @@ function Commands.PrintDebug()
 
     local playerClass = ns.Data.GetPlayerClass()
     if playerClass then
+        local ruleButtonCounts = {}
+        for i = 1, #ns.Buttons.list do
+            local rules = ns.Buttons.GetButtonRules(ns.Buttons.list[i])
+            if rules then
+                for j = 1, #rules do
+                    local rId = rules[j].id
+                    ruleButtonCounts[rId] = (ruleButtonCounts[rId] or 0) + 1
+                end
+            end
+        end
+
         for i = 1, #ns.Data.RULES do
             local rule = ns.Data.RULES[i]
             if rule.class == playerClass then
                 local spellName = ns.Data.GetSpellName(rule.id) or L['pending']
                 ns.Print(string.format(
-                    L['Rule %d: %s (%s)'],
+                    L['Rule %d: %s (%s) — %d botones'],
                     rule.id,
                     spellName,
-                    tostring(rule.kind)
+                    tostring(rule.kind),
+                    ruleButtonCounts[rule.id] or 0
                 ))
             end
         end

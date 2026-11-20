@@ -15,6 +15,9 @@ ns.DEFAULTS = {
         execute = true,
         interrupt = true,
         debuff = true,
+        requires = true,
+        mana = true,
+        outOfCombat = true,
     },
 }
 
@@ -30,9 +33,60 @@ end
 -- still receive the event name as their first argument.
 ns.events = KL:NewEvents()
 
-ns.targetEvents = {}
-ns.targetUnitFiltered = {}
-ns.targetFrame = CreateFrame('Frame', 'KnuCastTargetFrame')
+ns.unitEvents = {}
+ns.unitFiltered = {}
+ns.unitFrames = {}
+
+function ns:RegisterUnitEvent(unit, event, handler)
+    assert(type(unit) == 'string', 'Expected unit')
+    assert(type(event) == 'string', 'Expected event name')
+    assert(type(handler) == 'function', 'Expected event handler function')
+    
+    if not self.unitEvents[unit] then
+        self.unitEvents[unit] = {}
+        self.unitFiltered[unit] = {}
+        local frameName = 'KnuCast' .. unit:gsub('^%l', string.upper) .. 'Frame'
+        self.unitFrames[unit] = CreateFrame('Frame', frameName)
+        self.unitFrames[unit]:SetScript('OnEvent', function(_, ev, u)
+            ns:FireUnitEvent(unit, ev, u)
+        end)
+    end
+
+    local list = self.unitEvents[unit][event]
+    if not list then
+        list = {}
+        self.unitEvents[unit][event] = list
+        local unitFiltered = false
+        local frame = self.unitFrames[unit]
+        if type(frame.RegisterUnitEvent) == 'function' then
+            local ok, res = pcall(frame.RegisterUnitEvent, frame, event, unit)
+            unitFiltered = ok and res ~= false
+        end
+        if not unitFiltered then
+            pcall(frame.RegisterEvent, frame, event)
+        end
+        self.unitFiltered[unit][event] = unitFiltered
+    end
+    list[#list + 1] = handler
+end
+
+function ns:FireUnitEvent(expectedUnit, event, unit)
+    local list = self.unitEvents[expectedUnit] and self.unitEvents[expectedUnit][event]
+    if not list then
+        return
+    end
+    if not self.unitFiltered[expectedUnit][event] then
+        if not (ns.Secret and ns.Secret.Accessible(unit)) then
+            return
+        end
+        if unit ~= expectedUnit then
+            return
+        end
+    end
+    for i = 1, #list do
+        list[i](event)
+    end
+end
 
 function ns:RegisterEvent(event, handler)
     assert(type(event) == 'string', 'Expected event name')
@@ -45,46 +99,8 @@ function ns:RegisterEvent(event, handler)
 end
 
 function ns:RegisterTargetEvent(event, handler)
-    assert(type(event) == 'string', 'Expected event name')
-    assert(type(handler) == 'function', 'Expected event handler function')
-    local list = self.targetEvents[event]
-    if not list then
-        list = {}
-        self.targetEvents[event] = list
-        local unitFiltered = false
-        if type(self.targetFrame.RegisterUnitEvent) == 'function' then
-            local ok, res = pcall(self.targetFrame.RegisterUnitEvent, self.targetFrame, event, 'target')
-            unitFiltered = ok and res ~= false
-        end
-        if not unitFiltered then
-            pcall(self.targetFrame.RegisterEvent, self.targetFrame, event)
-        end
-        self.targetUnitFiltered[event] = unitFiltered
-    end
-    list[#list + 1] = handler
+    self:RegisterUnitEvent('target', event, handler)
 end
-
-function ns:FireTargetEvent(event, unit)
-    local list = self.targetEvents[event]
-    if not list then
-        return
-    end
-    if not self.targetUnitFiltered[event] then
-        if not (ns.Secret and ns.Secret.Accessible(unit)) then
-            return
-        end
-        if unit ~= 'target' then
-            return
-        end
-    end
-    for i = 1, #list do
-        list[i](event)
-    end
-end
-
-ns.targetFrame:SetScript('OnEvent', function(_, event, unit)
-    ns:FireTargetEvent(event, unit)
-end)
 
 ns:InitDB()
 

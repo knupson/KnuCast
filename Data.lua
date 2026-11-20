@@ -54,13 +54,37 @@ Data.RULES = {
     { id = 589, class = 'PRIEST', kind = 'debuff', debuff = { 589 }, source = 'https://www.wowhead.com/classic/spell=589' },
     { id = 172, class = 'WARLOCK', kind = 'debuff', debuff = { 172 }, source = 'https://www.wowhead.com/classic/spell=172' },
     { id = 348, class = 'WARLOCK', kind = 'debuff', debuff = { 348 }, source = 'https://www.wowhead.com/classic/spell=348' },
-    { id = 980, class = 'WARLOCK', kind = 'debuff', debuff = { 980 }, source = 'https://www.wowhead.com/classic/spell=980' },
+    { id = 980, class = 'WARLOCK', kind = 'debuff', debuff = { 980, 1490, 17937, 704, 702 }, source = 'https://www.wowhead.com/classic/spell=980' },
     { id = 8921, class = 'DRUID', kind = 'debuff', debuff = { 8921 }, source = 'https://www.wowhead.com/classic/spell=8921' },
     { id = 770, class = 'DRUID', kind = 'debuff', debuff = { 770 }, source = 'https://www.wowhead.com/classic/spell=770' },
     { id = 5570, class = 'DRUID', kind = 'debuff', debuff = { 5570 }, source = 'https://www.wowhead.com/classic/spell=5570' },
     { id = 1130, class = 'HUNTER', kind = 'debuff', debuff = { 1130 }, source = 'https://www.wowhead.com/classic/spell=1130' },
     { id = 1978, class = 'HUNTER', kind = 'debuff', debuff = { 1978 }, source = 'https://www.wowhead.com/classic/spell=1978' },
     { id = 772, class = 'WARRIOR', kind = 'debuff', debuff = { 772 }, source = 'https://www.wowhead.com/classic/spell=772' },
+    
+    -- New rules from condiciones-2
+    { id = 20271, class = 'PALADIN', kind = 'requires', auraUnit = 'player', aura = { 21084, 21082, 20375, 20164, 20165, 20166 }, source = 'https://www.wowhead.com/classic/spell=20271' },
+    { id = 17962, class = 'WARLOCK', kind = 'requires', auraUnit = 'target', aura = { 348 }, source = 'https://www.wowhead.com/classic/spell=17962' },
+    
+    { id = 8129, class = 'PRIEST', kind = 'mana', source = 'https://www.wowhead.com/classic/spell=8129' },
+    { id = 5138, class = 'WARLOCK', kind = 'mana', source = 'https://www.wowhead.com/classic/spell=5138' },
+    { id = 3034, class = 'HUNTER', kind = 'mana', source = 'https://www.wowhead.com/classic/spell=3034' },
+
+    { id = 6770, class = 'ROGUE', kind = 'outOfCombat', source = 'https://www.wowhead.com/classic/spell=6770' },
+    { id = 453, class = 'PRIEST', kind = 'outOfCombat', source = 'https://www.wowhead.com/classic/spell=453' },
+    { id = 2908, class = 'DRUID', kind = 'outOfCombat', source = 'https://www.wowhead.com/classic/spell=2908' },
+
+    { id = 7386, class = 'WARRIOR', kind = 'debuff', debuff = { 7386 }, source = 'https://www.wowhead.com/classic/spell=7386' },
+    { id = 1160, class = 'WARRIOR', kind = 'debuff', debuff = { 1160 }, source = 'https://www.wowhead.com/classic/spell=1160' },
+    { id = 6343, class = 'WARRIOR', kind = 'debuff', debuff = { 6343 }, source = 'https://www.wowhead.com/classic/spell=6343' },
+    { id = 99, class = 'DRUID', kind = 'debuff', debuff = { 99 }, source = 'https://www.wowhead.com/classic/spell=99' },
+    { id = 16857, class = 'DRUID', kind = 'debuff', debuff = { 16857 }, source = 'https://www.wowhead.com/classic/spell=16857' },
+    { id = 15286, class = 'PRIEST', kind = 'debuff', debuff = { 15286 }, source = 'https://www.wowhead.com/classic/spell=15286' },
+    { id = 18879, class = 'WARLOCK', kind = 'debuff', debuff = { 18879 }, source = 'https://www.wowhead.com/classic/spell=18879' },
+    { id = 1490, class = 'WARLOCK', kind = 'debuff', debuff = { 980, 1490, 17937, 704, 702 }, source = 'https://www.wowhead.com/classic/spell=1490' },
+    { id = 17937, class = 'WARLOCK', kind = 'debuff', debuff = { 980, 1490, 17937, 704, 702 }, source = 'https://www.wowhead.com/classic/spell=17937' },
+    { id = 704, class = 'WARLOCK', kind = 'debuff', debuff = { 980, 1490, 17937, 704, 702 }, source = 'https://www.wowhead.com/classic/spell=704' },
+    { id = 702, class = 'WARLOCK', kind = 'debuff', debuff = { 980, 1490, 17937, 704, 702 }, source = 'https://www.wowhead.com/classic/spell=702' },
 }
 
 Data.MAX_SPELL_REQUESTS = 2
@@ -221,6 +245,7 @@ function Data:BuildIndex()
                 self.failedSpells[rule.id] = nil
                 if rule.debuff then
                     local debuffNames = {}
+                    local complete = true
                     for j = 1, #rule.debuff do
                         local dID = rule.debuff[j]
                         local dName = Data.GetSpellName(dID)
@@ -228,16 +253,44 @@ function Data:BuildIndex()
                             self.inFlightSpells[dID] = nil
                             self.failedSpells[dID] = nil
                             debuffNames[dName] = true
-                        elseif self:CanRetrySpell(dID) then
-                            self.pendingRuleSpells[dID] = true
-                            self.hasPendingSpells = true
-                            RequestSpellLoad(dID)
+                        else
+                            complete = false
+                            if self:CanRetrySpell(dID) then
+                                self.pendingRuleSpells[dID] = true
+                                self.hasPendingSpells = true
+                                RequestSpellLoad(dID)
+                            end
                         end
                     end
-                    if not next(debuffNames) then
-                        debuffNames[spellName] = true
-                    end
                     rule.debuffNames = debuffNames
+                    rule.namesComplete = complete
+                end
+
+                if rule.aura then
+                    local auraNames = {}
+                    local complete = true
+                    for j = 1, #rule.aura do
+                        local aID = rule.aura[j]
+                        local aName = Data.GetSpellName(aID)
+                        if aName then
+                            self.inFlightSpells[aID] = nil
+                            self.failedSpells[aID] = nil
+                            auraNames[aName] = true
+                        else
+                            complete = false
+                            if self:CanRetrySpell(aID) then
+                                self.pendingRuleSpells[aID] = true
+                                self.hasPendingSpells = true
+                                RequestSpellLoad(aID)
+                            end
+                        end
+                    end
+                    rule.auraNames = auraNames
+                    if rule.debuff == nil then
+                        rule.namesComplete = complete
+                    else
+                        rule.namesComplete = rule.namesComplete and complete
+                    end
                 end
 
                 local list = self.bySpellName[spellName]

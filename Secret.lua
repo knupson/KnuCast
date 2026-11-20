@@ -128,10 +128,9 @@ local function NormalizeSpellNames(spellNames)
     return wanted, count
 end
 
--- Iterates HARMFUL|PLAYER auras via C_UnitAuras.GetAuraDataByIndex (not
--- GetAuraDataBySpellName, which returns nil on secret auras).
+-- Iterates auras via C_UnitAuras.GetAuraDataByIndex (not GetAuraDataBySpellName).
 -- Returns true (present), false (missing, all auras read in the clear), or nil (unknown/secret).
-function Secret.PlayerDebuffState(unit, spellNames)
+function Secret.OwnAuraState(unit, spellNames, filter)
     unit = unit or 'target'
     local wanted, count = NormalizeSpellNames(spellNames)
     if count == 0 then
@@ -140,7 +139,7 @@ function Secret.PlayerDebuffState(unit, spellNames)
 
     if C_UnitAuras and type(C_UnitAuras.GetAuraDataByIndex) == 'function' then
         for i = 1, 100 do
-            local ok, aura = pcall(C_UnitAuras.GetAuraDataByIndex, unit, i, 'HARMFUL|PLAYER')
+            local ok, aura = pcall(C_UnitAuras.GetAuraDataByIndex, unit, i, filter)
             if not ok or not Secret.Accessible(aura) then
                 return nil
             end
@@ -158,12 +157,12 @@ function Secret.PlayerDebuffState(unit, spellNames)
                 return true
             end
         end
-        return false
+        return nil
     end
 
     if type(UnitAura) == 'function' then
         for i = 1, 100 do
-            local ok, name = pcall(UnitAura, unit, i, 'HARMFUL|PLAYER')
+            local ok, name = pcall(UnitAura, unit, i, filter)
             if not ok or not Secret.Accessible(name) then
                 return nil
             end
@@ -177,10 +176,14 @@ function Secret.PlayerDebuffState(unit, spellNames)
                 return true
             end
         end
-        return false
+        return nil
     end
 
     return nil
+end
+
+function Secret.PlayerDebuffState(unit, spellNames)
+    return Secret.OwnAuraState(unit, spellNames, 'HARMFUL|PLAYER')
 end
 
 -- Uses C_ActionBar.IsUsableAction with fallback to global IsUsableAction.

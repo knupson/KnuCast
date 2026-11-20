@@ -290,12 +290,12 @@ do
     -- Fallback unit check when RegisterUnitEvent is unavailable: rejects secret unit token without error
     ns.Engine:ResetTargetState()
     Stub.units.target.casting = { name = secretCastName }
-    ns.targetUnitFiltered['UNIT_SPELLCAST_START'] = false
-    ns.FireTargetEvent(ns, 'UNIT_SPELLCAST_START', secretTargetUnit)
+    ns.unitFiltered['target']['UNIT_SPELLCAST_START'] = false
+    ns.FireUnitEvent(ns, 'target', 'UNIT_SPELLCAST_START', secretTargetUnit)
     AssertEq(ns.Engine.eventCasting, nil, 'Fallback unit filter rejects secret unit token safely')
-    ns.FireTargetEvent(ns, 'UNIT_SPELLCAST_START', 'target')
+    ns.FireUnitEvent(ns, 'target', 'UNIT_SPELLCAST_START', 'target')
     AssertEq(ns.Engine.eventCasting, true, 'Fallback unit filter accepts accessible target unit')
-    ns.targetUnitFiltered['UNIT_SPELLCAST_START'] = true
+    ns.unitFiltered['target']['UNIT_SPELLCAST_START'] = true
 end
 
 -- 5. Execute via usable action (C_ActionBar.IsUsableAction + fallback IsUsableAction)
@@ -466,7 +466,7 @@ do
     ns.KL:Dispatch('cast debug')
     local debugOutput = table.concat(Stub.chatMessages, '\n')
     Assert(debugOutput:find('withRules=1', 1, true) ~= nil, 'debug prints count of action buttons matching a rule')
-    Assert(debugOutput:find('879', 1, true) ~= nil and debugOutput:find('Exorcism', 1, true) ~= nil and debugOutput:find('types', 1, true) ~= nil, 'debug prints rule 879 resolved name and kind')
+    Assert(debugOutput:find('879', 1, true) ~= nil and debugOutput:find('Exorcism', 1, true) ~= nil and debugOutput:find('types', 1, true) ~= nil and debugOutput:find('1 botones', 1, true) ~= nil, 'debug prints rule 879 resolved name, kind and button count')
     Assert(debugOutput:find('2812', 1, true) ~= nil and debugOutput:find('Holy Wrath', 1, true) ~= nil, 'debug prints rule 2812 resolved name')
     Assert(debugOutput:find('2878', 1, true) ~= nil and debugOutput:find('pending', 1, true) ~= nil, 'debug prints pending for unresolved rule 2878')
     Assert(debugOutput:find('24275', 1, true) ~= nil and debugOutput:find('Hammer of Wrath', 1, true) ~= nil and debugOutput:find('execute', 1, true) ~= nil, 'debug prints rule 24275 resolved name and kind')
@@ -813,3 +813,119 @@ print(string.format('%d passed, %d failed (0 failures required)', passed, failed
 if failed > 0 then
     os.exit(1)
 end
+    -- outOfCombat
+    ResetTestEnvironment('ROGUE')
+    local btn1 = CreateFrame('CheckButton', 'ActionButton1')
+    btn1.action = 1
+    Stub.actions[1] = { type = 'spell', id = 6770 } -- Sap
+    ns.Buttons:Discover()
+    Stub.units.target = { canAttack = true, creatureTypeID = 7, affectingCombat = true }
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btn1), 'grey', 'Sap is grey on humanoid in combat')
+
+    Stub.units.target.affectingCombat = false
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Sap glows on humanoid out of combat')
+
+    local secretCombat = Stub.MarkSecret(true)
+    Stub.units.target.affectingCombat = secretCombat
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Sap glows if combat state is secret (fallback to types)')
+
+    -- requires (Judgement)
+    ResetTestEnvironment('PALADIN')
+    btn1 = CreateFrame('CheckButton', 'ActionButton1')
+    btn1.action = 1
+    Stub.actions[1] = { type = 'spell', id = 20271 } -- Judgement
+    ns.Buttons:Discover()
+    Stub.units.target = { canAttack = true }
+    Stub.auras.player = {}
+    
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btn1), 'grey', 'Judgement is grey without any seal')
+
+    Stub.auras.player = { { name = 'Seal of Command' } }
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Judgement has no visual when seal is active')
+
+    local secretAura = Stub.MarkSecret('Seal of Command')
+    Stub.auras.player = { { name = secretAura } }
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Judgement has no visual when seal is secret')
+
+    -- mana
+    ResetTestEnvironment('PRIEST')
+    btn1 = CreateFrame('CheckButton', 'ActionButton1')
+    btn1.action = 1
+    Stub.actions[1] = { type = 'spell', id = 8129 } -- Mana Burn
+    ns.Buttons:Discover()
+    Stub.units.target = { canAttack = true, powerType = 1 } -- Rage
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btn1), 'grey', 'Mana Burn is grey on target with Rage')
+
+    Stub.units.target = { canAttack = true, powerType = 0, powerMax = 0 } -- Mana type but 0 max
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btn1), 'grey', 'Mana Burn is grey on target with 0 max mana')
+
+    Stub.units.target = { canAttack = true, powerType = 0, powerMax = 100 } -- Normal mana target
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Mana Burn has no visual on target with mana')
+    
+    Stub.units.target = { canAttack = true, powerType = Stub.MarkSecret(1) }
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Mana Burn has no visual on target with secret power type')
+
+    -- shared curses
+    ResetTestEnvironment('WARLOCK')
+    btn1 = CreateFrame('CheckButton', 'ActionButton1')
+    btn1.action = 1
+    Stub.actions[1] = { type = 'spell', id = 980 } -- Curse of Agony
+    local btn2 = CreateFrame('CheckButton', 'ActionButton2')
+    btn2.action = 2
+    Stub.actions[2] = { type = 'spell', id = 1490 } -- Curse of the Elements
+    ns.Buttons:Discover()
+
+    Stub.units.target = { canAttack = true }
+    Stub.auras.target = {}
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Curse of Agony glows when no curse is active')
+    AssertEq(ns.Buttons:GetVisual(btn2), 'glow', 'Curse of the Elements glows when no curse is active')
+
+    Stub.auras.target = { { name = 'Curse of Shadow' } } -- One of the shared curses
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Curse of Agony loses glow when Curse of Shadow is present')
+    AssertEq(ns.Buttons:GetVisual(btn2), 'none', 'Curse of the Elements loses glow when Curse of Shadow is present')
+
+    -- CheckSoundTransition performance
+    ResetTestEnvironment('WARRIOR')
+    local btnInt1 = CreateFrame('CheckButton', 'ActionButton1')
+    btnInt1.action = 1
+    Stub.actions[1] = { type = 'spell', id = 72 } -- Shield Bash
+    ns.Buttons:Discover()
+
+    local ruleCalls = 0
+    local orig = ns.Buttons.GetButtonRules
+    ns.Buttons.GetButtonRules = function(...)
+        ruleCalls = ruleCalls + 1
+        return orig(...)
+    end
+
+    Stub.units.target = { canAttack = true }
+    ns.Engine:UpdateButton(btnInt1)
+
+    ruleCalls = 0
+    ns.Engine:CheckSoundTransition()
+    AssertEq(ruleCalls, 0, 'CheckSoundTransition does not iterate buttons and call GetButtonRules')
+
+    ns.Buttons.GetButtonRules = orig
+
+    -- RegisterUnitEvent 'player' filter
+    ResetTestEnvironment('PALADIN')
+    local called = false
+    ns:RegisterUnitEvent('player', 'KNUCAST_TEST_UNIT_EVENT', function() called = true end)
+    
+    Stub.FireEvent('KNUCAST_TEST_UNIT_EVENT', 'target')
+    AssertEq(called, false, 'RegisterUnitEvent("player") ignores "target" event')
+
+    Stub.FireEvent('KNUCAST_TEST_UNIT_EVENT', 'player')
+    AssertEq(called, true, 'RegisterUnitEvent("player") triggers on "player" event')

@@ -338,6 +338,28 @@ Stub.DEFAULT_SPELLS = {
     [1130] = "Hunter's Mark",
     [1978] = 'Serpent Sting',
     [772] = 'Rend',
+    [21084] = 'Seal of Righteousness',
+    [21082] = 'Seal of the Crusader',
+    [20375] = 'Seal of Command',
+    [20164] = 'Seal of Justice',
+    [20165] = 'Seal of Light',
+    [20166] = 'Seal of Wisdom',
+    [20271] = 'Judgement',
+    [17962] = 'Conflagrate',
+    [8129] = 'Mana Burn',
+    [5138] = 'Drain Mana',
+    [3034] = 'Viper Sting',
+    [7386] = 'Sunder Armor',
+    [1160] = 'Demoralizing Shout',
+    [6343] = 'Thunder Clap',
+    [99] = 'Demoralizing Roar',
+    [16857] = 'Faerie Fire (Feral)',
+    [15286] = 'Vampiric Embrace',
+    [18879] = 'Siphon Life',
+    [1490] = 'Curse of the Elements',
+    [17937] = 'Curse of Shadow',
+    [704] = 'Curse of Recklessness',
+    [702] = 'Curse of Weakness',
 }
 
 Stub.spells = {}
@@ -392,6 +414,24 @@ function _G.UnitCreatureType(unit)
         return nil, nil
     end
     return u.creatureTypeName, u.creatureTypeID
+end
+
+function _G.UnitPowerType(unit)
+    local u = Stub.units[unit]
+    if not u then return 0 end
+    return u.powerType or 0
+end
+
+function _G.UnitPowerMax(unit, powerType)
+    local u = Stub.units[unit]
+    if not u then return 100 end
+    return u.powerMax or 100
+end
+
+function _G.UnitAffectingCombat(unit)
+    local u = Stub.units[unit]
+    if not u then return false end
+    return u.affectingCombat or false
 end
 
 function _G.UnitCastingInfo(unit)

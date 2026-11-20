@@ -9,6 +9,7 @@ local Engine = {
     eventNotInterruptible = false,
     prevActiveKinds = {},
     buttonActiveKinds = {},
+    activeKindCounts = {},
 }
 ns.Engine = Engine
 
@@ -22,6 +23,7 @@ function Engine:ResetTargetState()
     self.eventNotInterruptible = false
     self.prevActiveKinds = {}
     self.buttonActiveKinds = {}
+    self.activeKindCounts = {}
 end
 
 function Engine:IsTargetCasting(unit)
@@ -94,11 +96,47 @@ function Engine:EvalRule(rule, slot, unit)
         end
         return self.UNKNOWN
     elseif rule.kind == 'debuff' then
-        local names = rule.debuffNames or rule.debuff
-        local present = ns.Secret.PlayerDebuffState(unit, names)
-        if present == false then
-            return self.YES
+        local present = ns.Secret.OwnAuraState(unit, rule.debuffNames, 'HARMFUL|PLAYER')
+        if present == true then
+            return self.UNKNOWN
+        elseif present == false then
+            if rule.namesComplete then
+                return self.YES
+            else
+                return self.UNKNOWN
+            end
         end
+        return self.UNKNOWN
+    elseif rule.kind == 'requires' then
+        local filter = (rule.auraUnit == 'player') and 'HELPFUL' or 'HARMFUL|PLAYER'
+        local present = ns.Secret.OwnAuraState(rule.auraUnit or 'target', rule.auraNames, filter)
+        if present == true then
+            return self.UNKNOWN
+        elseif present == false then
+            if rule.namesComplete then
+                return self.NO
+            else
+                return self.UNKNOWN
+            end
+        end
+        return self.UNKNOWN
+    elseif rule.kind == 'mana' then
+        if type(UnitPowerType) ~= 'function' then return self.UNKNOWN end
+        local ok, pt = pcall(UnitPowerType, unit)
+        if not ok or not ns.Secret.Accessible(pt) or type(pt) ~= 'number' then return self.UNKNOWN end
+        if pt ~= 0 then return self.NO end
+        
+        if type(UnitPowerMax) ~= 'function' then return self.UNKNOWN end
+        local okMax, pm = pcall(UnitPowerMax, unit, 0)
+        if not okMax or not ns.Secret.Accessible(pm) or type(pm) ~= 'number' then return self.UNKNOWN end
+        if pm == 0 then return self.NO end
+        
+        return self.UNKNOWN
+    elseif rule.kind == 'outOfCombat' then
+        if type(UnitAffectingCombat) ~= 'function' then return self.UNKNOWN end
+        local ok, inCombat = pcall(UnitAffectingCombat, unit)
+        if not ok or not ns.Secret.Accessible(inCombat) or type(inCombat) ~= 'boolean' then return self.UNKNOWN end
+        if inCombat == true then return self.NO end
         return self.UNKNOWN
     end
 
@@ -181,10 +219,16 @@ end
 function Engine:EvaluateButton(btn)
     local rules, slot = ns.Buttons.GetButtonRules(btn)
     if not rules then
-        self.buttonActiveKinds[btn] = nil
+        if self.buttonActiveKinds[btn] then
+            for kind in pairs(self.buttonActiveKinds[btn]) do
+                self.activeKindCounts[kind] = (self.activeKindCounts[kind] or 1) - 1
+            end
+            self.buttonActiveKinds[btn] = nil
+        end
         ns.Buttons:SetVisual(btn, 'none')
         return
     end
+
     local state, yesKinds = self:EvaluateRules(rules, slot, 'target')
     local eligibleKinds = nil
     for kind in pairs(yesKinds) do
@@ -195,34 +239,43 @@ function Engine:EvaluateButton(btn)
             eligibleKinds[kind] = true
         end
     end
+
+    local oldKinds = self.buttonActiveKinds[btn]
+    if oldKinds then
+        for kind in pairs(oldKinds) do
+            if not eligibleKinds or not eligibleKinds[kind] then
+                self.activeKindCounts[kind] = (self.activeKindCounts[kind] or 1) - 1
+            end
+        end
+    end
+    if eligibleKinds then
+        for kind in pairs(eligibleKinds) do
+            if not oldKinds or not oldKinds[kind] then
+                self.activeKindCounts[kind] = (self.activeKindCounts[kind] or 0) + 1
+            end
+        end
+    end
     self.buttonActiveKinds[btn] = eligibleKinds
+
     local visual = Engine.StateToVisual(state)
     ns.Buttons:SetVisual(btn, visual)
 end
 
 function Engine:CheckSoundTransition()
-    local activeKinds = {}
-    for i = 1, #ns.Buttons.list do
-        local btn = ns.Buttons.list[i]
-        local kinds = self.buttonActiveKinds[btn]
-        if kinds then
-            for kind in pairs(kinds) do
-                if SOUND_ELIGIBLE_KINDS[kind] then
-                    activeKinds[kind] = true
-                end
+    local transitioned = false
+    local prev = self.prevActiveKinds or {}
+    local active = {}
+    
+    for kind, count in pairs(self.activeKindCounts) do
+        if count > 0 then
+            active[kind] = true
+            if not prev[kind] then
+                transitioned = true
             end
         end
     end
-
-    local transitioned = false
-    local prev = self.prevActiveKinds or {}
-    for kind in pairs(activeKinds) do
-        if not prev[kind] then
-            transitioned = true
-            break
-        end
-    end
-    self.prevActiveKinds = activeKinds
+    
+    self.prevActiveKinds = active
 
     if transitioned then
         self:PlayAlertSound()
@@ -286,6 +339,7 @@ function Engine:UpdateAll()
     end
 
     self.buttonActiveKinds = {}
+    self.activeKindCounts = {}
     for i = 1, #ns.Buttons.list do
         self:EvaluateButton(ns.Buttons.list[i])
     end
@@ -300,11 +354,15 @@ ns:RegisterEvent('PLAYER_ENTERING_WORLD', function()
     Engine:UpdateAll()
 end)
 
+ns:RegisterEvent('PLAYER_REGEN_DISABLED', function()
+    Engine:UpdateAll()
+end)
+
 ns:RegisterEvent('PLAYER_REGEN_ENABLED', function()
     if ns.Buttons.needsDiscovery then
         ns.Buttons:Discover()
-        Engine:UpdateAll()
     end
+    Engine:UpdateAll()
 end)
 
 ns:RegisterEvent('SPELLS_CHANGED', function()
@@ -396,12 +454,18 @@ local UNIT_RECOMPUTE_EVENTS = {
     'UNIT_HEALTH',
     'UNIT_MAXHEALTH',
     'UNIT_AURA',
+    'UNIT_DISPLAYPOWER',
+    'UNIT_MAXPOWER',
 }
 for i = 1, #UNIT_RECOMPUTE_EVENTS do
     ns:RegisterTargetEvent(UNIT_RECOMPUTE_EVENTS[i], function()
         Engine:UpdateAll()
     end)
 end
+
+ns:RegisterUnitEvent('player', 'UNIT_AURA', function()
+    Engine:UpdateAll()
+end)
 
 local CAST_START_EVENTS = {
     'UNIT_SPELLCAST_START',
