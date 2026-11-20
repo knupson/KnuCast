@@ -14,6 +14,7 @@ ns.L = KL:NewLocale({
     ['Debug: targetType=%s, casting=%s, buttons=%d, withRules=%d'] = 'Depuración: tipoObjetivo=%s, lanzando=%s, botones=%d, conRegla=%d',
     ['Rule %d: %s (%s) — %d botones'] = 'Regla %d: %s (%s) — %d botones',
     ['pending'] = 'pendiente',
+    ['missing in this client'] = 'no existe en este cliente',
     ['secret'] = 'secreto',
     ['none'] = 'ninguno',
     ['yes'] = 'sí',

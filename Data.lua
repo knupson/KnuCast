@@ -54,16 +54,16 @@ Data.RULES = {
     { id = 589, class = 'PRIEST', kind = 'debuff', debuff = { 589 }, source = 'https://www.wowhead.com/classic/spell=589' },
     { id = 172, class = 'WARLOCK', kind = 'debuff', debuff = { 172 }, source = 'https://www.wowhead.com/classic/spell=172' },
     { id = 348, class = 'WARLOCK', kind = 'debuff', debuff = { 348 }, source = 'https://www.wowhead.com/classic/spell=348' },
-    { id = 980, class = 'WARLOCK', kind = 'debuff', debuff = { 980, 1490, 17862, 704, 702 }, source = 'https://www.wowhead.com/classic/spell=980' },
+    { id = 980, class = 'WARLOCK', kind = 'debuff', debuff = { 980, 603, 1225228 }, source = 'https://www.wowhead.com/forever/spell=980' },
     { id = 8921, class = 'DRUID', kind = 'debuff', debuff = { 8921 }, source = 'https://www.wowhead.com/classic/spell=8921' },
-    { id = 770, class = 'DRUID', kind = 'debuff', debuff = { 770, 16857 }, source = 'https://www.wowhead.com/classic/spell=770' },
+    { id = 770, class = 'DRUID', kind = 'debuff', debuff = { 770 }, source = 'https://www.wowhead.com/classic/spell=770' },
     { id = 5570, class = 'DRUID', kind = 'debuff', debuff = { 5570 }, source = 'https://www.wowhead.com/classic/spell=5570' },
     { id = 1130, class = 'HUNTER', kind = 'debuff', debuff = { 1130 }, source = 'https://www.wowhead.com/classic/spell=1130' },
     { id = 1978, class = 'HUNTER', kind = 'debuff', debuff = { 1978 }, source = 'https://www.wowhead.com/classic/spell=1978' },
     { id = 772, class = 'WARRIOR', kind = 'debuff', debuff = { 772 }, source = 'https://www.wowhead.com/classic/spell=772' },
     
     -- New rules from condiciones-2
-    { id = 20271, class = 'PALADIN', kind = 'requires', auraUnit = 'player', aura = { 21084, 21082, 20375, 20164, 20165, 20166 }, source = 'https://www.wowhead.com/classic/spell=20271' },
+    { id = 20271, class = 'PALADIN', kind = 'requires', auraUnit = 'player', aura = { 21084, 21082, 20375, 20164, 20165, 20166, 1311649 }, source = 'https://www.wowhead.com/classic/spell=20271' },
     { id = 17962, class = 'WARLOCK', kind = 'requires', auraUnit = 'target', aura = { 348 }, source = 'https://www.wowhead.com/classic/spell=17962' },
     
     { id = 8129, class = 'PRIEST', kind = 'mana', source = 'https://www.wowhead.com/classic/spell=8129' },
@@ -78,13 +78,11 @@ Data.RULES = {
     { id = 1160, class = 'WARRIOR', kind = 'debuff', debuff = { 1160 }, source = 'https://www.wowhead.com/classic/spell=1160' },
     { id = 6343, class = 'WARRIOR', kind = 'debuff', debuff = { 6343 }, source = 'https://www.wowhead.com/classic/spell=6343' },
     { id = 99, class = 'DRUID', kind = 'debuff', debuff = { 99 }, source = 'https://www.wowhead.com/classic/spell=99' },
-    { id = 16857, class = 'DRUID', kind = 'debuff', debuff = { 16857, 770 }, source = 'https://www.wowhead.com/classic/spell=16857' },
     { id = 15286, class = 'PRIEST', kind = 'debuff', debuff = { 15286 }, source = 'https://www.wowhead.com/classic/spell=15286' },
     { id = 18265, class = 'WARLOCK', kind = 'debuff', debuff = { 18265 }, source = 'https://www.wowhead.com/classic/spell=18265' },
-    { id = 1490, class = 'WARLOCK', kind = 'debuff', debuff = { 980, 1490, 17862, 704, 702 }, source = 'https://www.wowhead.com/classic/spell=1490' },
-    { id = 17862, class = 'WARLOCK', kind = 'debuff', debuff = { 980, 1490, 17862, 704, 702 }, source = 'https://www.wowhead.com/classic/spell=17862' },
-    { id = 704, class = 'WARLOCK', kind = 'debuff', debuff = { 980, 1490, 17862, 704, 702 }, source = 'https://www.wowhead.com/classic/spell=704' },
-    { id = 702, class = 'WARLOCK', kind = 'debuff', debuff = { 980, 1490, 17862, 704, 702 }, source = 'https://www.wowhead.com/classic/spell=702' },
+    { id = 440892, class = 'WARLOCK', kind = 'debuff', debuff = { 440892, 704, 702 }, source = 'https://www.wowhead.com/forever/spell=440892' },
+    { id = 704, class = 'WARLOCK', kind = 'debuff', debuff = { 440892, 704, 702 }, source = 'https://www.wowhead.com/classic/spell=704' },
+    { id = 702, class = 'WARLOCK', kind = 'debuff', debuff = { 440892, 704, 702 }, source = 'https://www.wowhead.com/classic/spell=702' },
 }
 
 Data.MAX_SPELL_REQUESTS = 2
@@ -200,8 +198,20 @@ function Data:MarkSpellFailed(spellID)
         if self.pendingRuleSpells[spellID] then
             self.pendingRuleSpells[spellID] = nil
             self.hasPendingSpells = next(self.pendingRuleSpells) ~= nil
+            -- Caller must rebuild the index: this ID no longer blocks namesComplete.
+            return true
         end
     end
+    return false
+end
+
+-- An ID whose loads all failed does not exist in this client (e.g. a Classic ID
+-- that Forever removed). Such an aura can never be on a unit, so it must not
+-- keep a rule's name set incomplete.
+function Data:IsSpellMissing(spellID)
+    return self.failedSpells[spellID] == true
+        and not self.inFlightSpells[spellID]
+        and (self.spellRequestCount[spellID] or 0) >= self.MAX_SPELL_REQUESTS
 end
 
 function Data:ResetPendingActionSpells()
@@ -253,7 +263,7 @@ function Data:BuildIndex()
                             self.inFlightSpells[dID] = nil
                             self.failedSpells[dID] = nil
                             debuffNames[dName] = true
-                        else
+                        elseif not self:IsSpellMissing(dID) then
                             complete = false
                             if self:CanRetrySpell(dID) then
                                 self.pendingRuleSpells[dID] = true
@@ -276,7 +286,7 @@ function Data:BuildIndex()
                             self.inFlightSpells[aID] = nil
                             self.failedSpells[aID] = nil
                             auraNames[aName] = true
-                        else
+                        elseif not self:IsSpellMissing(aID) then
                             complete = false
                             if self:CanRetrySpell(aID) then
                                 self.pendingRuleSpells[aID] = true

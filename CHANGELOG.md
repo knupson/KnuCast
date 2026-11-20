@@ -2,12 +2,15 @@
 
 ## Unreleased
 
-- Nuevas reglas de resaltado: requerimiento de aura propia o en objetivo (`requires`), objetivo sin maná/energía (`mana`) y exigencia de estar fuera de combate (`outOfCombat`).
-- Completitud en la resolución de nombres de auras (`namesComplete`); la ausencia de auras (para `debuff` o `requires`) sólo se evalúa como SÍ/NO si resolvieron todos sus IDs.
-- Optimización de rendimiento para el sonido al cambiar de estado (evita iterar botones que no tienen tipos elegibles).
-- Soporte para maldiciones de brujo (grupo de debuffs compartidos donde la presencia de cualquiera cancela el brillo).
-- El comando `/knu cast debug` ahora imprime la cantidad de botones activos que usan cada regla.
-- `RegisterUnitEvent` optimizado para `player` (para sellos) y otros eventos dependientes de la unidad.
+- Juicio se pone gris si no tenés ningún Sello activo (incluye Sello de furia de Forever).
+- Conflagración se pone gris si el objetivo no tiene tu Inmolar.
+- Quemadura de maná, Drenar maná y Picadura de víbora se ponen grises contra objetivos sin maná.
+- Porrazo, Calmar mente y Calmar animal se ponen grises si el objetivo ya está en combate.
+- Más debuffs que brillan cuando faltan: Hender armadura, Grito desmoralizador, Atronar, Rugido desmoralizador, Abrazo vampírico, Succionar vida y las maldiciones de brujo. Banes y maldiciones van por separado, como en Forever: uno de cada uno por objetivo.
+- IDs revisadas contra wowhead Forever: Maldición de los elementos usa la 440892; se quitaron Maldición de las Sombras y Fuego feérico feral, que Forever no tiene.
+- Si una ID no existe en el cliente, ya no bloquea las marcas, y `/knu cast debug` la muestra como «no existe en este cliente». También muestra cuántos botones usan cada regla.
+- Corregido: un debuff con nombres sin cargar del todo podía brillar de más.
+- Pasa a KnuLib 5.
 
 ## 0.1.0-beta
 

@@ -397,13 +397,19 @@ ns:RegisterEvent('SPELL_DATA_LOAD_RESULT', function(_, spellID, success)
     end
 
     if not loadOk then
-        ns.Data:MarkSpellFailed(spellID)
+        if ns.Data:MarkSpellFailed(spellID) then
+            ns.Data:BuildIndex()
+            Engine:UpdateAll()
+        end
         return
     end
 
     local spellName = ns.Data.GetSpellName(spellID)
     if not spellName then
-        ns.Data:MarkSpellFailed(spellID)
+        if ns.Data:MarkSpellFailed(spellID) then
+            ns.Data:BuildIndex()
+            Engine:UpdateAll()
+        end
         return
     end
 

@@ -79,7 +79,10 @@ function Commands.PrintDebug()
         for i = 1, #ns.Data.RULES do
             local rule = ns.Data.RULES[i]
             if rule.class == playerClass then
-                local spellName = ns.Data.GetSpellName(rule.id) or L['pending']
+                local spellName = ns.Data.GetSpellName(rule.id)
+                if not spellName then
+                    spellName = ns.Data:IsSpellMissing(rule.id) and L['missing in this client'] or L['pending']
+                end
                 ns.Print(string.format(
                     L['Rule %d: %s (%s) — %d botones'],
                     rule.id,

@@ -873,26 +873,50 @@ do
     ns.Engine:UpdateAll()
     AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Mana Burn has no visual on target with secret power type')
 
-    -- shared curses
+    -- Forever: banes and curses are separate groups (one Bane and one Curse per warlock)
     ResetTestEnvironment('WARLOCK')
     btn1 = CreateFrame('CheckButton', 'ActionButton1')
     btn1.action = 1
-    Stub.actions[1] = { type = 'spell', id = 980 } -- Curse of Agony
+    Stub.actions[1] = { type = 'spell', id = 980 } -- Bane of Agony
     local btn2 = CreateFrame('CheckButton', 'ActionButton2')
     btn2.action = 2
-    Stub.actions[2] = { type = 'spell', id = 1490 } -- Curse of the Elements
+    Stub.actions[2] = { type = 'spell', id = 440892 } -- Curse of the Elements (Forever ID)
     ns.Buttons:Discover()
 
     Stub.units.target = { canAttack = true }
     Stub.auras.target = {}
     ns.Engine:UpdateAll()
-    AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Curse of Agony glows when no curse is active')
+    AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Bane of Agony glows when no bane is active')
     AssertEq(ns.Buttons:GetVisual(btn2), 'glow', 'Curse of the Elements glows when no curse is active')
 
-    Stub.auras.target = { { name = 'Curse of Shadow' } } -- One of the shared curses
+    Stub.auras.target = { { name = 'Curse of Weakness' } }
     ns.Engine:UpdateAll()
-    AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Curse of Agony loses glow when Curse of Shadow is present')
-    AssertEq(ns.Buttons:GetVisual(btn2), 'none', 'Curse of the Elements loses glow when Curse of Shadow is present')
+    AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Bane of Agony still glows when only a curse is present')
+    AssertEq(ns.Buttons:GetVisual(btn2), 'none', 'Curse of the Elements loses glow when Curse of Weakness is present')
+
+    Stub.auras.target = { { name = 'Bane of Doom' } }
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Bane of Agony loses glow when Bane of Doom is present')
+    AssertEq(ns.Buttons:GetVisual(btn2), 'glow', 'Curse of the Elements still glows when only a bane is present')
+
+    -- An aura ID that does not exist in this client stops blocking namesComplete
+    -- once its loads are exhausted (Classic IDs removed by Forever).
+    ResetTestEnvironment('WARLOCK')
+    local savedRules = ns.Data.RULES
+    Stub.spells[999001] = 'Test Curse'
+    ns.Data.RULES = { { id = 999001, class = 'WARLOCK', kind = 'debuff', debuff = { 999001, 999002 } } }
+    ns.Data:BuildIndex()
+    local missRule = ns.Data.bySpellName['Test Curse'][1]
+    AssertEq(missRule.namesComplete, false, 'Unresolved aura ID keeps names incomplete at first')
+    Stub.FireEvent('SPELL_DATA_LOAD_RESULT', 999002, false)
+    AssertEq(ns.Data.bySpellName['Test Curse'][1].namesComplete, false, 'One failed load (retry left) keeps names incomplete')
+    ns.Data:BuildIndex() -- retries the request (second attempt)
+    Stub.FireEvent('SPELL_DATA_LOAD_RESULT', 999002, false)
+    AssertEq(ns.Data:IsSpellMissing(999002), true, 'ID is treated as missing after exhausting its loads')
+    AssertEq(ns.Data.bySpellName['Test Curse'][1].namesComplete, true, 'Missing ID no longer blocks namesComplete (index rebuilt)')
+    ns.Data.RULES = savedRules
+    Stub.spells[999001] = nil
+    ns.Data:BuildIndex()
 
     -- CheckSoundTransition performance
     ResetTestEnvironment('WARRIOR')
