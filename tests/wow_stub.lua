@@ -454,11 +454,19 @@ end
 
 _G.C_UnitAuras = {
     GetAuraDataByIndex = function(unit, index, filter)
+        Stub.lastAuraUnit = unit
+        Stub.lastAuraFilter = filter
         local list = Stub.auras[unit]
         if not list then
             return nil
         end
-        return list[index]
+        local filtered = {}
+        for i = 1, #list do
+            if not list[i].filter or list[i].filter == filter then
+                filtered[#filtered + 1] = list[i]
+            end
+        end
+        return filtered[index]
     end,
     GetAuraDataBySpellName = function()
         error('GetAuraDataBySpellName should not be used (RequiresNonSecretAura)')
