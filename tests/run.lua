@@ -809,10 +809,8 @@ do
     AssertEq(ran, true, 'KL:OnLogin runs immediately after PLAYER_LOGIN')
 end
 
-print(string.format('%d passed, %d failed (0 failures required)', passed, failed))
-if failed > 0 then
-    os.exit(1)
-end
+-- Condiciones 2 (requires, mana, outOfCombat, shared curses, sound counters, unit events)
+do
     -- outOfCombat
     ResetTestEnvironment('ROGUE')
     local btn1 = CreateFrame('CheckButton', 'ActionButton1')
@@ -929,3 +927,9 @@ end
 
     Stub.FireEvent('KNUCAST_TEST_UNIT_EVENT', 'player')
     AssertEq(called, true, 'RegisterUnitEvent("player") triggers on "player" event')
+end
+
+print(string.format('%d passed, %d failed (0 failures required)', passed, failed))
+if failed > 0 then
+    os.exit(1)
+end
