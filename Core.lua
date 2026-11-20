@@ -18,30 +18,17 @@ ns.DEFAULTS = {
     },
 }
 
-local function ApplyDefaults(dst, src)
-    for k, v in pairs(src) do
-        if type(v) == 'table' then
-            if type(dst[k]) ~= 'table' then
-                dst[k] = {}
-            end
-            ApplyDefaults(dst[k], v)
-        elseif dst[k] == nil then
-            dst[k] = v
-        end
-    end
-    return dst
-end
-
 function ns:InitDB()
     if type(_G.KnuCastDB) ~= 'table' then
         _G.KnuCastDB = {}
     end
-    self.db = ApplyDefaults(_G.KnuCastDB, self.DEFAULTS)
+    self.db = KL:ApplyDefaults(_G.KnuCastDB, self.DEFAULTS)
     return self.db
 end
 
-ns.events = {}
-ns.frame = CreateFrame('Frame', 'KnuCastFrame')
+-- KnuLib MINOR 5 event object; handlers registered through ns:RegisterEvent
+-- still receive the event name as their first argument.
+ns.events = KL:NewEvents()
 
 ns.targetEvents = {}
 ns.targetUnitFiltered = {}
@@ -50,13 +37,11 @@ ns.targetFrame = CreateFrame('Frame', 'KnuCastTargetFrame')
 function ns:RegisterEvent(event, handler)
     assert(type(event) == 'string', 'Expected event name')
     assert(type(handler) == 'function', 'Expected event handler function')
-    local list = self.events[event]
-    if not list then
-        list = {}
-        self.events[event] = list
-        pcall(self.frame.RegisterEvent, self.frame, event)
-    end
-    list[#list + 1] = handler
+    -- Unknown events (e.g. ACTIONBAR_UPDATE_USABLE on Forever) make On return
+    -- false and keep the error in ns.events.invalid; loading continues.
+    return self.events:On(event, function(...)
+        handler(event, ...)
+    end)
 end
 
 function ns:RegisterTargetEvent(event, handler)
@@ -79,16 +64,6 @@ function ns:RegisterTargetEvent(event, handler)
     list[#list + 1] = handler
 end
 
-function ns:FireEvent(event, ...)
-    local list = self.events[event]
-    if not list then
-        return
-    end
-    for i = 1, #list do
-        list[i](event, ...)
-    end
-end
-
 function ns:FireTargetEvent(event, unit)
     local list = self.targetEvents[event]
     if not list then
@@ -106,10 +81,6 @@ function ns:FireTargetEvent(event, unit)
         list[i](event)
     end
 end
-
-ns.frame:SetScript('OnEvent', function(_, event, ...)
-    ns:FireEvent(event, ...)
-end)
 
 ns.targetFrame:SetScript('OnEvent', function(_, event, unit)
     ns:FireTargetEvent(event, unit)

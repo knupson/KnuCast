@@ -762,6 +762,53 @@ do
     AssertEq(#Stub.soundsPlayed, 2, 'Second sound played when UpdateButton transitions back to interrupt glow')
 end
 
+
+-- KnuLib MINOR 5 integration
+do
+    local KL = ns.KL
+    AssertEq(KL.minor or select(2, LibStub:GetLibrary('KnuLib-1.0')), 5, 'Embedded KnuLib is MINOR 5')
+    Assert(type(ns.events) == 'table' and type(ns.events.On) == 'function', 'ns.events is a KnuLib NewEvents object')
+
+    local gotName, gotArg
+    ns:RegisterEvent('KNUCAST_TEST_EVENT', function(event, arg)
+        gotName, gotArg = event, arg
+    end)
+    Stub.FireEvent('KNUCAST_TEST_EVENT', 42)
+    AssertEq(gotName, 'KNUCAST_TEST_EVENT', 'RegisterEvent handler receives the event name first')
+    AssertEq(gotArg, 42, 'RegisterEvent handler receives the event payload after the name')
+
+    local saved = { glow = false, conditions = { types = false } }
+    KL:ApplyDefaults(saved, ns.DEFAULTS)
+    AssertEq(saved.glow, false, 'ApplyDefaults keeps saved scalar values')
+    AssertEq(saved.conditions.types, false, 'ApplyDefaults keeps saved nested values')
+    AssertEq(saved.conditions.interrupt, true, 'ApplyDefaults fills missing nested defaults')
+    Assert(saved.conditions ~= ns.DEFAULTS.conditions, 'ApplyDefaults does not alias the defaults table')
+
+    -- An event the client rejects does not break registration of later handlers.
+    local frame = ns.events.frame
+    local origRegister = frame.RegisterEvent
+    frame.RegisterEvent = function(self, event)
+        if event == 'KNUCAST_BOGUS_EVENT' then
+            error('Attempt to register unknown event')
+        end
+        return origRegister(self, event)
+    end
+    local okBogus, resBogus = pcall(ns.RegisterEvent, ns, 'KNUCAST_BOGUS_EVENT', function() end)
+    AssertEq(okBogus, true, 'Registering an unknown event does not raise')
+    AssertEq(resBogus, false, 'Registering an unknown event reports false')
+    Assert(ns.events.invalid['KNUCAST_BOGUS_EVENT'] ~= nil, 'Unknown event error kept in ns.events.invalid')
+    frame.RegisterEvent = origRegister
+    local afterBogus = false
+    ns:RegisterEvent('KNUCAST_VALID_AFTER_BOGUS', function() afterBogus = true end)
+    Stub.FireEvent('KNUCAST_VALID_AFTER_BOGUS')
+    AssertEq(afterBogus, true, 'A valid event registered after a rejected one still fires')
+
+    -- OnLogin runs immediately once logged in.
+    local ran = false
+    KL:OnLogin(function() ran = true end)
+    AssertEq(ran, true, 'KL:OnLogin runs immediately after PLAYER_LOGIN')
+end
+
 print(string.format('%d passed, %d failed (0 failures required)', passed, failed))
 if failed > 0 then
     os.exit(1)

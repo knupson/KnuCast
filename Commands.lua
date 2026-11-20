@@ -128,7 +128,8 @@ function Commands:Register()
     ns.KL:RegisterCommand('cast', Commands.Handle, L['Situational spell highlights on action buttons'], { 'knucast' })
 end
 
--- Registered on login, never at file load: an older KnuLib copy may still be the active one.
-ns:RegisterEvent('PLAYER_LOGIN', function()
+-- Registered through KnuLib's login queue: deferred until PLAYER_LOGIN, or run
+-- immediately if the client is already logged in (KnuLib MINOR 5).
+ns.KL:OnLogin(function()
     Commands:Register()
 end)
