@@ -1,4 +1,4 @@
-﻿local MAJOR, MINOR = 'KnuLib-1.0', 5
+﻿local MAJOR, MINOR = 'KnuLib-1.0', 6
 local lib = LibStub:NewLibrary(MAJOR, MINOR); if not lib then return end
 
 function lib:ApplyDefaults(db, defaults)
@@ -135,6 +135,10 @@ function lib:CancelAfterCombat(key)
     if entry then
         entry.cancelled = true
         self.combatKeys[key] = nil
+        -- Sacarla de la cola: cancelar y re-encolar en un combate largo no la hace crecer.
+        for i = #self.combatQueue, 1, -1 do
+            if self.combatQueue[i] == entry then table.remove(self.combatQueue, i) end
+        end
     end
 end
 

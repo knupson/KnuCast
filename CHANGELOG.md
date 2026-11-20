@@ -10,7 +10,7 @@
 - IDs revisadas contra wowhead Forever: Maldición de los elementos usa la 440892; se quitaron Maldición de las Sombras y Fuego feérico feral, que Forever no tiene.
 - Si una ID no existe en el cliente, ya no bloquea las marcas, y `/knu cast debug` la muestra como «no existe en este cliente». También muestra cuántos botones usan cada regla.
 - Corregido: un debuff con nombres sin cargar del todo podía brillar de más.
-- Pasa a KnuLib 5.
+- Pasa a KnuLib 6.
 
 ## 0.1.0-beta
 
