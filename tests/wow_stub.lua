@@ -355,9 +355,9 @@ Stub.DEFAULT_SPELLS = {
     [99] = 'Demoralizing Roar',
     [16857] = 'Faerie Fire (Feral)',
     [15286] = 'Vampiric Embrace',
-    [18879] = 'Siphon Life',
+    [18265] = 'Siphon Life',
     [1490] = 'Curse of the Elements',
-    [17937] = 'Curse of Shadow',
+    [17862] = 'Curse of Shadow',
     [704] = 'Curse of Recklessness',
     [702] = 'Curse of Weakness',
 }
