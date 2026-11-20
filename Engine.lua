@@ -388,10 +388,8 @@ ns:RegisterEvent('SPELL_DATA_LOAD_RESULT', function(_, spellID, success)
     local loadOk
     if not ns.Secret.Accessible(success) then
         loadOk = false
-    elseif success == false then
-        loadOk = false
-    elseif success == true then
-        loadOk = true
+    elseif type(success) == 'boolean' then
+        loadOk = success
     else
         loadOk = ns.Data.GetSpellName(spellID) ~= nil
     end
@@ -415,15 +413,16 @@ ns:RegisterEvent('SPELL_DATA_LOAD_RESULT', function(_, spellID, success)
 
     local wasPendingRule = ns.Data.pendingRuleSpells[spellID] == true
     local wasPendingAction = ns.Data.pendingActionSpells[spellID] == true
-    if not wasPendingRule and not wasPendingAction then
+    local wasMissing = ns.Data:IsSpellMissing(spellID)
+    if not wasPendingRule and not wasPendingAction and not wasMissing then
         return
     end
 
-    if wasPendingRule then
-        ns.Data:BuildIndex()
-    end
-    if wasPendingAction then
+    if wasPendingAction or wasMissing then
         ns.Data:ResolveActionSpell(spellID)
+    end
+    if wasPendingRule or wasMissing then
+        ns.Data:BuildIndex()
     end
 
     for i = 1, #ns.Buttons.list do
@@ -432,7 +431,7 @@ ns:RegisterEvent('SPELL_DATA_LOAD_RESULT', function(_, spellID, success)
         local slotSpellID = slot and ns.Buttons.GetSlotSpellID(slot)
         if slotSpellID then
             local match = (slotSpellID == spellID)
-            if not match and wasPendingRule then
+            if not match and (wasPendingRule or wasMissing) then
                 local slotSpellName = ns.Data.GetSpellName(slotSpellID)
                 if slotSpellName and ns.Data.bySpellName[slotSpellName] then
                     match = true

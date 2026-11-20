@@ -918,12 +918,20 @@ do
     Stub.spells[999001] = nil
     ns.Data:BuildIndex()
 
-    -- CheckSoundTransition performance
+    -- N incremental updates with sound enabled must do linear total work.
     ResetTestEnvironment('WARRIOR')
-    local btnInt1 = CreateFrame('CheckButton', 'ActionButton1')
-    btnInt1.action = 1
-    Stub.actions[1] = { type = 'spell', id = 72 } -- Shield Bash
+    ns.db.sound = true
+    local buttonCount = 12
+    for i = 1, buttonCount do
+        local btn = CreateFrame('CheckButton', 'ActionButton' .. i)
+        btn.action = i
+        Stub.actions[i] = { type = 'spell', id = 72 } -- Shield Bash
+    end
     ns.Buttons:Discover()
+    Stub.units.target = { canAttack = true, casting = { name = 'Shadow Bolt', notInterruptible = false } }
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Engine.activeKindCounts.interrupt, buttonCount, 'All interrupt buttons are active for performance measurement')
+    AssertEq(#Stub.soundsPlayed, 1, 'Performance measurement has sound enabled')
 
     local ruleCalls = 0
     local orig = ns.Buttons.GetButtonRules
@@ -932,14 +940,24 @@ do
         return orig(...)
     end
 
-    Stub.units.target = { canAttack = true }
-    ns.Engine:UpdateButton(btnInt1)
-
-    ruleCalls = 0
-    ns.Engine:CheckSoundTransition()
-    AssertEq(ruleCalls, 0, 'CheckSoundTransition does not iterate buttons and call GetButtonRules')
-
+    local iterations = 0
+    local origPairs, origIpairs = pairs, ipairs
+    local function countedIterator(iterator, state, key)
+        return function(s, k)
+            local nextKey, value = iterator(s, k)
+            if nextKey ~= nil then iterations = iterations + 1 end
+            return nextKey, value
+        end, state, key
+    end
+    _G.pairs = function(t) return countedIterator(origPairs(t)) end
+    _G.ipairs = function(t) return countedIterator(origIpairs(t)) end
+    for i = 1, buttonCount do
+        ns.Engine:UpdateButton(ns.Buttons.list[i])
+    end
+    _G.pairs, _G.ipairs = origPairs, origIpairs
     ns.Buttons.GetButtonRules = orig
+    AssertEq(ruleCalls, buttonCount, 'N UpdateButton calls evaluate rules exactly N times with sound enabled')
+    Assert(iterations <= 6 * buttonCount, 'N UpdateButton calls stay within a linear iteration bound')
 
     -- RegisterUnitEvent 'player' filter
     ResetTestEnvironment('PALADIN')
@@ -975,15 +993,19 @@ do
     -- Remove btn1
     ns.Buttons.known[btn1] = nil
     ns.Engine:UpdateButton(btn1)
+    AssertEq(ns.Engine.activeKindCounts.interrupt, 1, 'Removal immediately releases one interrupt contribution')
+    AssertEq(ns.Engine.buttonActiveKinds[btn1], nil, 'Removal immediately clears the button contribution')
 
     -- Cast stops -> btn2 clears its contribution, but if btn1 didn't, count would be 1
     Stub.units.target.casting = nil
-    ns.Engine:UpdateAll()
+    ns.Engine:UpdateButton(btn2)
+    AssertEq(ns.Engine.activeKindCounts.interrupt, 0, 'Incremental cast stop clears the remaining contribution')
     AssertEq(#Stub.soundsPlayed, 1, 'No new sound when cast stops')
 
     -- Cast starts -> should play sound again (transition from 0 to 1 on btn2)
     Stub.units.target.casting = { name = 'Shadow Bolt', notInterruptible = false }
-    ns.Engine:UpdateAll()
+    ns.Engine:UpdateButton(btn2)
+    AssertEq(ns.Engine.activeKindCounts.interrupt, 1, 'Incremental cast start restores only the remaining button')
     AssertEq(#Stub.soundsPlayed, 2, 'Sound plays again on second cast because removed button released its contribution')
 end
 
@@ -1058,8 +1080,7 @@ end
 -- 18. Aura at index 101
 do
     ResetTestEnvironment('WARLOCK')
-    Stub.spells[348] = nil
-    Stub.spells[172] = nil
+    Stub.spells[348] = 'Immolate'
     ns.Data:BuildIndex()
     local btn1 = CreateFrame('CheckButton', 'ActionButton1')
     btn1.action = 1
@@ -1070,7 +1091,11 @@ do
     for i = 1, 100 do
         Stub.auras.target[i] = { name = 'DummyAura' }
     end
-    -- Index 101 is an unknown aura because the limit is 100
+    Stub.auras.target[101] = { name = 'Immolate' }
+    local rule = ns.Data.bySpellName['Conflagrate'][1]
+    AssertEq(rule.namesComplete, true, 'Aura limit test has fully resolved names')
+    AssertEq(rule.auraNames.Immolate, true, 'Aura limit test scans for Immolate')
+    AssertEq(ns.Engine:EvalRule(rule, 1, 'target'), ns.Engine.UNKNOWN, 'Matching aura at index 101 yields UNKNOWN at the scan limit')
     ns.Engine:UpdateAll()
     AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Aura absence after 100 dummy auras results in UNKNOWN (no mark), not absent')
 end
@@ -1157,6 +1182,35 @@ do
     _G.UnitAffectingCombat = oldUnitAffectingCombat
 end
 
+
+-- 23. A successful load after exhaustion restores aura names and button state.
+do
+    ResetTestEnvironment('WARLOCK')
+    Stub.spells[1225228] = nil -- Bane of Havoc shares the Bane of Agony rule.
+    ns.Data:BuildIndex()
+    local btn = CreateFrame('CheckButton', 'ActionButton1')
+    btn.action = 1
+    Stub.actions[1] = { type = 'spell', id = 980 }
+    ns.Buttons:Discover()
+    Stub.units.target = { canAttack = true }
+    Stub.auras.target = { { name = 'Bane of Havoc' } }
+    for i = 1, ns.Data.MAX_SPELL_REQUESTS do
+        Stub.FireEvent('SPELL_DATA_LOAD_RESULT', 1225228, false)
+        if i < ns.Data.MAX_SPELL_REQUESTS then ns.Data:BuildIndex() end
+    end
+    AssertEq(ns.Data:IsSpellMissing(1225228), true, 'Bane of Havoc loads are exhausted')
+    AssertEq(ns.Data.pendingRuleSpells[1225228], nil, 'Exhausted ID is no longer pending')
+    AssertEq(ns.Buttons:GetVisual(btn), 'glow', 'Missing aura ID initially permits the debuff glow')
+
+    Stub.spells[1225228] = 'Bane of Havoc'
+    Stub.FireEvent('SPELL_DATA_LOAD_RESULT', 1225228, true)
+    AssertEq(ns.Data:IsSpellMissing(1225228), false, 'Late successful load clears missing classification')
+    AssertEq(ns.Data.failedSpells[1225228], nil, 'Late successful load clears failure bookkeeping')
+    local rule = ns.Data.bySpellName['Bane of Agony'][1]
+    AssertEq(rule.debuffNames['Bane of Havoc'], true, 'Late successful load rebuilds affected aura names')
+    AssertEq(ns.Engine:EvalRule(rule, 1, 'target'), ns.Engine.UNKNOWN, 'Existing late-loaded aura yields UNKNOWN')
+    AssertEq(ns.Buttons:GetVisual(btn), 'none', 'Late successful load refreshes the existing button')
+end
 
 print(string.format('%d passed, %d failed (0 failures required)', passed, failed))
 if failed > 0 then
