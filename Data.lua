@@ -65,7 +65,9 @@ Data.RULES = {
     -- New rules from condiciones-2
     -- Judgement without a Seal is NOT marked (user, 21/11: a red X there reads as
     -- "useless against this target", and it is not). Rule kept in tests/run.lua.
-    { id = 17962, class = 'WARLOCK', kind = 'requires', auraUnit = 'target', aura = { 348 }, source = 'https://www.wowhead.com/classic/spell=17962' },
+    -- Conflagrate without your Immolate is NOT marked either: same case as
+    -- Judgement (something of yours is missing, the spell is not useless
+    -- against the target). Rule kept in tests/run.lua for kind = 'requires'.
     
     { id = 8129, class = 'PRIEST', kind = 'mana', source = 'https://www.wowhead.com/classic/spell=8129' },
     { id = 5138, class = 'WARLOCK', kind = 'mana', source = 'https://www.wowhead.com/classic/spell=5138' },

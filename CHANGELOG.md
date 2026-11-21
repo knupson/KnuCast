@@ -2,10 +2,9 @@
 
 ## Unreleased
 
-- Juicio sin Sello ya no se marca: la cruz roja queda sólo para hechizos que no sirven contra el objetivo.
+- Juicio sin Sello y Conflagración sin Inmolar no se marcan: la cruz roja queda sólo para hechizos que no sirven contra el objetivo.
 - Un hechizo que no sirve contra el objetivo ahora muestra una cruz roja sobre el botón, para no confundirlo con fuera de rango.
 - El brillo se nota más: borde dorado de 4 px que sobresale del botón, relleno más fuerte y latido más rápido.
-- Conflagración se pone gris si el objetivo no tiene tu Inmolar.
 - Quemadura de maná, Drenar maná y Picadura de víbora se ponen grises contra objetivos sin maná.
 - Porrazo, Calmar mente y Calmar animal se ponen grises si el objetivo ya está en combate.
 - Más debuffs que brillan cuando faltan: Hender armadura, Grito desmoralizador, Atronar, Rugido desmoralizador, Abrazo vampírico, Succionar vida y las maldiciones de brujo. Banes y maldiciones van por separado, como en Forever: uno de cada uno por objetivo.

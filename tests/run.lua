@@ -85,6 +85,7 @@ end
 -- still the reference case for kind = 'requires' with auraUnit = 'player'.
 local TEST_JUDGEMENT_RULE = { id = 20271, class = 'PALADIN', kind = 'requires', auraUnit = 'player',
     aura = { 21084, 21082, 20375, 20164, 20165, 20166, 1311649 } }
+local TEST_CONFLAGRATE_RULE = { id = 17962, class = 'WARLOCK', kind = 'requires', auraUnit = 'target', aura = { 348 } }
 local function WithTestRule(rule, fn)
     table.insert(ns.Data.RULES, rule)
     ns.Data:BuildIndex()
@@ -1080,6 +1081,7 @@ do
     AssertEq(Stub.lastAuraFilter, 'HELPFUL', 'Judgement used HELPFUL filter')
     end)
 
+    WithTestRule(TEST_CONFLAGRATE_RULE, function()
     ResetTestEnvironment('WARLOCK')
     local btn2 = CreateFrame('CheckButton', 'ActionButton1')
     btn2.action = 1
@@ -1092,10 +1094,12 @@ do
     ns.Engine:UpdateAll()
     AssertEq(Stub.lastAuraUnit, 'target', 'Conflagrate checked target auras')
     AssertEq(Stub.lastAuraFilter, 'HARMFUL|PLAYER', 'Conflagrate used HARMFUL|PLAYER filter')
+    end)
 end
 
 -- 17. Partial names
 do
+    WithTestRule(TEST_CONFLAGRATE_RULE, function()
     ResetTestEnvironment('WARLOCK')
     Stub.spells[348] = nil
     Stub.spells[172] = nil
@@ -1131,10 +1135,12 @@ do
     Stub.spells[172] = 'Corruption'
     Stub.FireEvent('SPELL_DATA_LOAD_RESULT', 172, true)
     AssertEq(ns.Buttons:GetVisual(btn2), 'glow', 'Corruption turns glow when its name resolves and is absent')
+    end)
 end
 
 -- 18. Aura at index 101
 do
+    WithTestRule(TEST_CONFLAGRATE_RULE, function()
     ResetTestEnvironment('WARLOCK')
     Stub.spells[348] = 'Immolate'
     ns.Data:BuildIndex()
@@ -1154,6 +1160,19 @@ do
     AssertEq(ns.Engine:EvalRule(rule, 1, 'target'), ns.Engine.UNKNOWN, 'Matching aura at index 101 yields UNKNOWN at the scan limit')
     ns.Engine:UpdateAll()
     AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Aura absence after 100 dummy auras results in UNKNOWN (no mark), not absent')
+    end)
+    -- Shipped data: Conflagrate without Immolate is not marked (21/11)
+    ResetTestEnvironment('WARLOCK')
+    Stub.spells[348] = 'Immolate'
+    ns.Data:BuildIndex()
+    local btnC = CreateFrame('CheckButton', 'ActionButton1')
+    btnC.action = 1
+    Stub.actions[1] = { type = 'spell', id = 17962 }
+    ns.Buttons:Discover()
+    Stub.units.target = { canAttack = true }
+    Stub.auras.target = {}
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btnC), 'none', 'Conflagrate without Immolate has no mark (shipped data)')
 end
 
 -- 19. Combat transitions refresh marks
