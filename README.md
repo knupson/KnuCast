@@ -24,5 +24,7 @@ Probado en el juego: nada todavía; prioridad paladín.
 ## Límites
 
 - **Valores secretos (`secret values`)**: cuando el cliente restringe la lectura de un dato del objetivo (`canaccessvalue` / `issecretvalue`), KnuCast no dibuja ninguna marca (ni brillo ni gris).
+- **Auras en combate**: medido en el juego el 20/11 (build 1.60.1.71037): en combate, Forever no deja que ningún addon lea auras (`C_UnitAuras.GetAuraDataByIndex` da error). Por eso los debuffs propios que faltan (Palabra de las Sombras: Dolor, Corrupción, etc.), el Sello de Juicio y el Inmolar de Conflagración sólo se marcan fuera de combate; en combate esos botones quedan sin marca. Juicio sin Sello igual lo pone gris el propio juego.
+- **Maná en combate**: el tipo de recurso del objetivo se lee siempre, pero cuánto maná tiene es secreto en combate. Un objetivo que no usa maná se pone gris; uno con maná queda sin marca.
 - **Macros**: fuera del alcance de la beta (sólo se evalúan ranuras de acción de tipo `spell`).
 - **Combate**: las capas visuales se crean únicamente fuera de combate; si se detectan botones nuevos durante el combate, su creación se difiere a `PLAYER_REGEN_ENABLED`.

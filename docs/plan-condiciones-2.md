@@ -52,3 +52,10 @@ Las 55 IDs de `Data.lua` se consultaron una por una. Resuelven todas salvo **149
 - Juicio: sumar **1311649** (Seal of Fury, sello nuevo de Forever) a la lista de sellos.
 - Conflagración: 17962 sigue existiendo en Forever (rango 3; el rango 1 es 1293817) y el addon compara por nombre, así que alcanza con una ID.
 - **Robustez:** una ID de `debuff`/`aura` que agotó sus intentos de carga (`MAX_SPELL_REQUESTS`) y no resolvió se considera inexistente en el cliente: deja de bloquear `namesComplete` (un aura que el cliente no conoce no puede estar puesta). `/knu cast debug` la lista como «no existe en este cliente».
+
+## 8. Medido en el juego (KnuSonda 0.7.0, 20/11, build 1.60.1.71037)
+Detalle: `E:\Repositorios\Personal\_datos\WOWAddons\knucast\secretos-medidos-2026-11-20.md`.
+- En combate `C_UnitAuras.GetAuraDataByIndex` **tira error** para objetivo y jugador con cualquier filtro («Auras cannot be accessed when secret while tainted»). `Secret.OwnAuraState` lo atrapa con `pcall` → DESCONOCIDO. Decisión: se mantiene así; `debuff` y `requires` marcan sólo fuera de combate (antes del pull) y el README lo dice. Alternativa a evaluar más adelante: seguir los debuffs propios por los lanzamientos del jugador (frágil: resistencias, refrescos, muertes).
+- Se leen en combate: `UnitCreatureType`, `UnitPowerType`, `UnitAffectingCombat`, `UnitCanAttack`. Secretos: `UnitHealth*` siempre, `UnitPower`/`UnitPowerMax` en combate.
+- Barras: `IsUsableAction`, `IsActionInRange`, `GetActionInfo`, `C_Spell.IsSpellUsable` sin secretos, también en combate.
+- `UnitCastingInfo` con objetivo lanzando: **sin medir** (pendiente de KnuSonda).
