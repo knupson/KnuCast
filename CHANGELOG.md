@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- El brillo se nota más: borde dorado de 4 px que sobresale del botón, relleno más fuerte y latido más rápido.
 - Juicio se pone gris si no tenés ningún Sello activo (incluye Sello de furia de Forever).
 - Conflagración se pone gris si el objetivo no tiene tu Inmolar.
 - Quemadura de maná, Drenar maná y Picadura de víbora se ponen grises contra objetivos sin maná.

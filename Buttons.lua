@@ -106,11 +106,17 @@ function Buttons.GetButtonRules(button)
     return rules, slot, spellName
 end
 
-local function CreateBorderEdge(parent, point1, point2, width, height)
+-- Glow border: 4 px gold, sticking out GLOW_OUTSET px past the button so it
+-- still reads next to the bar addon's own borders (user, 21/11: the old 2 px
+-- orange edge was not evident enough).
+local GLOW_EDGE = 4
+local GLOW_OUTSET = 2
+
+local function CreateBorderEdge(parent, point1, x1, y1, point2, x2, y2, width, height)
     local tex = parent:CreateTexture(nil, 'OVERLAY')
-    tex:SetColorTexture(1, 0.75, 0.42, 0.95)
-    tex:SetPoint(point1, parent, point1, 0, 0)
-    tex:SetPoint(point2, parent, point2, 0, 0)
+    tex:SetColorTexture(1, 0.82, 0.1, 1)
+    tex:SetPoint(point1, parent, point1, x1, y1)
+    tex:SetPoint(point2, parent, point2, x2, y2)
     if width and tex.SetWidth then
         tex:SetWidth(width)
     end
@@ -154,13 +160,14 @@ function Buttons:CreateOverlay(button)
     if fill.SetBlendMode then
         fill:SetBlendMode('ADD')
     end
-    fill:SetColorTexture(1, 0.66, 0.18, 0.22)
+    fill:SetColorTexture(1, 0.8, 0.2, 0.35)
 
+    local o = GLOW_OUTSET
     local edges = {
-        CreateBorderEdge(glow, 'TOPLEFT', 'TOPRIGHT', nil, 2),
-        CreateBorderEdge(glow, 'BOTTOMLEFT', 'BOTTOMRIGHT', nil, 2),
-        CreateBorderEdge(glow, 'TOPLEFT', 'BOTTOMLEFT', 2, nil),
-        CreateBorderEdge(glow, 'TOPRIGHT', 'BOTTOMRIGHT', 2, nil),
+        CreateBorderEdge(glow, 'TOPLEFT', -o, o, 'TOPRIGHT', o, o, nil, GLOW_EDGE),
+        CreateBorderEdge(glow, 'BOTTOMLEFT', -o, -o, 'BOTTOMRIGHT', o, -o, nil, GLOW_EDGE),
+        CreateBorderEdge(glow, 'TOPLEFT', -o, o, 'BOTTOMLEFT', -o, -o, GLOW_EDGE, nil),
+        CreateBorderEdge(glow, 'TOPRIGHT', o, o, 'BOTTOMRIGHT', o, -o, GLOW_EDGE, nil),
     }
 
     local animGroup
@@ -173,13 +180,13 @@ function Buttons:CreateOverlay(button)
             local alpha = animGroup:CreateAnimation('Alpha')
             if alpha then
                 if alpha.SetFromAlpha and alpha.SetToAlpha then
-                    alpha:SetFromAlpha(0.35)
+                    alpha:SetFromAlpha(0.45)
                     alpha:SetToAlpha(1.0)
                 elseif alpha.SetChange then
                     alpha:SetChange(-0.65)
                 end
                 if alpha.SetDuration then
-                    alpha:SetDuration(0.55)
+                    alpha:SetDuration(0.4)
                 end
                 if alpha.SetSmoothing then
                     alpha:SetSmoothing('IN_OUT')
