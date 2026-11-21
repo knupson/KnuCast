@@ -242,10 +242,17 @@ do
     local secretTargetUnit = Stub.MarkSecret('target')
     local secretFocusUnit = Stub.MarkSecret('focus')
     Stub.units.target.casting = { name = secretCastName }
-    AssertEq(ns.Secret.IsCasting('target'), nil, 'IsCasting returns nil when cast name is secret')
+    AssertEq(ns.Secret.IsCasting('target'), true, 'IsCasting is true when the cast info comes back secret (casting, measured in game)')
     ns.Engine:ResetTargetState()
     ns.Engine:UpdateAll()
-    AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Kick has no overlay when cast is secret and no event')
+    AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Kick glows on a secret cast seen right after a target change, with no event')
+
+    -- UNIT_SPELLCAST_* events trigger recomputation (cast info present, secret)
+    Stub.units.target.casting = nil
+    ns.Engine:ResetTargetState()
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Kick has no overlay when the target is not casting')
+    Stub.units.target.casting = { name = secretCastName } -- in game the cast info comes back secret while casting
 
     -- Non-target secret unit token must be ignored by RegisterUnitEvent filter
     Stub.FireEvent('UNIT_SPELLCAST_START', secretFocusUnit)
@@ -261,6 +268,7 @@ do
     Stub.FireEvent('UNIT_SPELLCAST_INTERRUPTIBLE', secretTargetUnit)
     AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Kick restores glow on UNIT_SPELLCAST_INTERRUPTIBLE with secret token')
 
+    Stub.units.target.casting = nil -- after STOP the client returns no cast info
     Stub.FireEvent('UNIT_SPELLCAST_STOP', secretTargetUnit)
     AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Kick clears glow on UNIT_SPELLCAST_STOP with secret token')
 
@@ -286,6 +294,24 @@ do
     ns.Engine:UpdateAll()
     AssertEq(ns.Engine:IsTargetCasting('target'), true, 'Readable notInterruptible=false with secret name overrides stale eventNotInterruptible')
     AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Kick glows when secret-named cast has readable notInterruptible=false')
+
+    -- True event fallback: cast info unreadable (call errors) -> direct state unknown,
+    -- so only UNIT_SPELLCAST_START / STOP decide.
+    do
+        local origCast, origChan = _G.UnitCastingInfo, _G.UnitChannelInfo
+        _G.UnitCastingInfo = function() error('cast info unavailable') end
+        _G.UnitChannelInfo = function() error('channel info unavailable') end
+        ns.Engine:ResetTargetState()
+        ns.Engine:UpdateAll()
+        AssertEq(ns.Secret.IsCasting('target'), nil, 'IsCasting is unknown when the cast info call errors')
+        AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'No glow before any cast event when cast info is unreadable')
+        Stub.FireEvent('UNIT_SPELLCAST_START', 'target')
+        AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Event fallback: UNIT_SPELLCAST_START alone makes Kick glow')
+        Stub.FireEvent('UNIT_SPELLCAST_STOP', 'target')
+        AssertEq(ns.Engine.eventCasting, false, 'UNIT_SPELLCAST_STOP records the end of the cast')
+        AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Event fallback: UNIT_SPELLCAST_STOP alone clears the glow')
+        _G.UnitCastingInfo, _G.UnitChannelInfo = origCast, origChan
+    end
 
     -- Fallback unit check when RegisterUnitEvent is unavailable: rejects secret unit token without error
     ns.Engine:ResetTargetState()
