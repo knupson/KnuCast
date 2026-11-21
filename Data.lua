@@ -63,7 +63,8 @@ Data.RULES = {
     { id = 772, class = 'WARRIOR', kind = 'debuff', debuff = { 772 }, source = 'https://www.wowhead.com/classic/spell=772' },
     
     -- New rules from condiciones-2
-    { id = 20271, class = 'PALADIN', kind = 'requires', auraUnit = 'player', aura = { 21084, 21082, 20375, 20164, 20165, 20166, 1311649 }, source = 'https://www.wowhead.com/classic/spell=20271' },
+    -- Judgement without a Seal is NOT marked (user, 21/11: a red X there reads as
+    -- "useless against this target", and it is not). Rule kept in tests/run.lua.
     { id = 17962, class = 'WARLOCK', kind = 'requires', auraUnit = 'target', aura = { 348 }, source = 'https://www.wowhead.com/classic/spell=17962' },
     
     { id = 8129, class = 'PRIEST', kind = 'mana', source = 'https://www.wowhead.com/classic/spell=8129' },

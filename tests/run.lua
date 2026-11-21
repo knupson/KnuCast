@@ -81,6 +81,21 @@ do
     Assert(c2 ~= nil, 'Syntax check tests/run.lua: ' .. tostring(e2))
 end
 
+-- Judgement-without-Seal rule, removed from Data.lua on 21/11 (user: no mark) but
+-- still the reference case for kind = 'requires' with auraUnit = 'player'.
+local TEST_JUDGEMENT_RULE = { id = 20271, class = 'PALADIN', kind = 'requires', auraUnit = 'player',
+    aura = { 21084, 21082, 20375, 20164, 20165, 20166, 1311649 } }
+local function WithTestRule(rule, fn)
+    table.insert(ns.Data.RULES, rule)
+    ns.Data:BuildIndex()
+    local ok, err = pcall(fn)
+    for i = #ns.Data.RULES, 1, -1 do
+        if ns.Data.RULES[i] == rule then table.remove(ns.Data.RULES, i) end
+    end
+    ns.Data:BuildIndex()
+    if not ok then error(err, 0) end
+end
+
 local function ResetTestEnvironment(classToken)
     Stub.ClearSecrets()
     Stub.inCombat = false
@@ -856,7 +871,7 @@ do
     ns.Engine:UpdateAll()
     AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Sap glows if combat state is secret (fallback to types)')
 
-    -- requires (Judgement)
+    -- Real data: Judgement without a Seal is not marked (user, 21/11)
     ResetTestEnvironment('PALADIN')
     btn1 = CreateFrame('CheckButton', 'ActionButton1')
     btn1.action = 1
@@ -864,7 +879,19 @@ do
     ns.Buttons:Discover()
     Stub.units.target = { canAttack = true }
     Stub.auras.player = {}
-    
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Judgement without any seal has no mark (shipped data)')
+
+    -- requires (test rule shaped like the old Judgement one)
+    WithTestRule(TEST_JUDGEMENT_RULE, function()
+    ResetTestEnvironment('PALADIN')
+    btn1 = CreateFrame('CheckButton', 'ActionButton1')
+    btn1.action = 1
+    Stub.actions[1] = { type = 'spell', id = 20271 } -- Judgement
+    ns.Buttons:Discover()
+    Stub.units.target = { canAttack = true }
+    Stub.auras.player = {}
+
     ns.Engine:UpdateAll()
     AssertEq(ns.Buttons:GetVisual(btn1), 'grey', 'Judgement is grey without any seal')
 
@@ -876,6 +903,7 @@ do
     Stub.auras.player = { { name = secretAura } }
     ns.Engine:UpdateAll()
     AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Judgement has no visual when seal is secret')
+    end)
 
     -- mana
     ResetTestEnvironment('PRIEST')
@@ -1037,6 +1065,7 @@ end
 
 -- 16. Aura stub honours unit AND filter
 do
+    WithTestRule(TEST_JUDGEMENT_RULE, function()
     ResetTestEnvironment('PALADIN')
     local btn1 = CreateFrame('CheckButton', 'ActionButton1')
     btn1.action = 1
@@ -1049,6 +1078,7 @@ do
     ns.Engine:UpdateAll()
     AssertEq(Stub.lastAuraUnit, 'player', 'Judgement checked player auras')
     AssertEq(Stub.lastAuraFilter, 'HELPFUL', 'Judgement used HELPFUL filter')
+    end)
 
     ResetTestEnvironment('WARLOCK')
     local btn2 = CreateFrame('CheckButton', 'ActionButton1')
