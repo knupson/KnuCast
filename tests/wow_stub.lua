@@ -266,6 +266,15 @@ function _G.CreateFrame(frameType, name, parent, template)
         self._textures[#self._textures + 1] = tex
         return tex
     end
+    function f:CreateLine(lineName, layer)
+        local line = NewTexture(self, lineName, layer)
+        function line:SetThickness(t) self._thickness = t end
+        function line:SetStartPoint(...) self._start = { ... } end
+        function line:SetEndPoint(...) self._end = { ... } end
+        self._lines = self._lines or {}
+        self._lines[#self._lines + 1] = line
+        return line
+    end
     function f:CreateAnimationGroup()
         return NewAnimationGroup(self)
     end

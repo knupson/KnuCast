@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Un hechizo que no sirve contra el objetivo ahora muestra una cruz roja sobre el botón, para no confundirlo con fuera de rango.
 - El brillo se nota más: borde dorado de 4 px que sobresale del botón, relleno más fuerte y latido más rápido.
 - Juicio se pone gris si no tenés ningún Sello activo (incluye Sello de furia de Forever).
 - Conflagración se pone gris si el objetivo no tiene tu Inmolar.

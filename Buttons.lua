@@ -126,6 +126,34 @@ local function CreateBorderEdge(parent, point1, x1, y1, point2, x2, y2, width, h
     return tex
 end
 
+local CROSS_THICKNESS = 4
+local CROSS_INSET = 3
+
+-- Two diagonal red lines corner to corner. Uses Line objects (anchored to the
+-- corners, so they follow any button size); without CreateLine there is no X
+-- and the veil alone remains.
+local function CreateCrossLines(parent)
+    if type(parent.CreateLine) ~= 'function' then
+        return {}
+    end
+    local i = CROSS_INSET
+    local specs = {
+        { 'TOPLEFT', i, -i, 'BOTTOMRIGHT', -i, i },
+        { 'TOPRIGHT', -i, -i, 'BOTTOMLEFT', i, i },
+    }
+    local lines = {}
+    for n = 1, #specs do
+        local s = specs[n]
+        local line = parent:CreateLine(nil, 'OVERLAY')
+        line:SetColorTexture(0.95, 0.1, 0.1, 0.95)
+        line:SetThickness(CROSS_THICKNESS)
+        line:SetStartPoint(s[1], parent, s[2], s[3])
+        line:SetEndPoint(s[4], parent, s[5], s[6])
+        lines[n] = line
+    end
+    return lines
+end
+
 -- Creates our own non-secure overlay frame/textures as children of the action
 -- button OUT OF COMBAT, keeping all references in Buttons.overlays[button].
 function Buttons:CreateOverlay(button)
@@ -149,8 +177,15 @@ function Buttons:CreateOverlay(button)
     -- top-left corner, so a greyed spell still looked usable (19/11 in game).
     local grey = holder:CreateTexture(nil, 'OVERLAY')
     grey:SetAllPoints(holder)
-    grey:SetColorTexture(0, 0, 0, 0.65)
+    grey:SetColorTexture(0, 0, 0, 0.55)
     grey:Hide()
+
+    -- Red X over the veil: a plain dark veil looked like "out of range" on
+    -- ElvUI (user, 21/11), so "this spell is useless here" needs its own sign.
+    local cross = CreateFrame('Frame', nil, holder)
+    cross:SetAllPoints(holder)
+    cross.lines = CreateCrossLines(cross)
+    cross:Hide()
 
     local glow = CreateFrame('Frame', nil, holder)
     glow:SetAllPoints(holder)
@@ -204,6 +239,7 @@ function Buttons:CreateOverlay(button)
         edges = edges,
         anim = animGroup,
         grey = grey,
+        cross = cross,
         state = 'none',
     }
     self.overlays[button] = overlay
@@ -328,6 +364,7 @@ function Buttons:SetVisual(button, visual)
     overlay.state = visual
     if visual == 'glow' then
         overlay.grey:Hide()
+        overlay.cross:Hide()
         overlay.glow:Show()
         if overlay.anim and overlay.anim.Play then
             local playing = overlay.anim.IsPlaying and overlay.anim:IsPlaying()
@@ -341,12 +378,14 @@ function Buttons:SetVisual(button, visual)
         end
         overlay.glow:Hide()
         overlay.grey:Show()
+        overlay.cross:Show()
     else
         if overlay.anim and overlay.anim.Stop then
             overlay.anim:Stop()
         end
         overlay.glow:Hide()
         overlay.grey:Hide()
+        overlay.cross:Hide()
     end
     return true
 end

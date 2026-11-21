@@ -1256,6 +1256,14 @@ do
     AssertEq(ov.grey._allPoints, ov.frame, 'Grey covers the whole holder, not the bar addon icon')
     AssertEq(ov.fill._allPoints, ov.frame, 'Glow fill covers the whole holder, not the bar addon icon')
     AssertEq(ov.frame._allPoints, btn, 'Holder covers the whole button')
+    -- 21/11 in game: a dark veil alone read as "out of range"; grey adds a red X.
+    AssertEq(ov.cross:IsShown(), true, 'Grey shows the red X')
+    AssertEq(#ov.cross.lines, 2, 'The X has two lines')
+    AssertEq(ov.cross.lines[1]._start[1], 'TOPLEFT', 'First line starts at the top-left corner')
+    AssertEq(ov.cross.lines[1]._end[1], 'BOTTOMRIGHT', 'First line ends at the bottom-right corner')
+    AssertEq(ov.cross.lines[2]._start[1], 'TOPRIGHT', 'Second line starts at the top-right corner')
+    AssertEq(ov.cross.lines[2]._end[1], 'BOTTOMLEFT', 'Second line ends at the bottom-left corner')
+    AssertEq(ov.cross.lines[1]._start[2], ov.cross, 'Line anchors to the overlay, not the bar addon icon')
 
     Stub.chatMessages = {}
     ns.KL:Dispatch('cast debug')
@@ -1272,6 +1280,10 @@ do
     exoLine = out:match('Rule 879:[^|]*') or ''
     Assert(exoLine:find('applies: yes', 1, true) ~= nil and exoLine:find('mark: glowing', 1, true) ~= nil,
         'debug shows yes and glow against an Undead')
+    AssertEq(ov.cross:IsShown(), false, 'Glow hides the red X')
+    Stub.units.target = nil
+    ns.Engine:UpdateAll()
+    AssertEq(ov.cross:IsShown(), false, 'No target hides the red X')
 end
 
 print(string.format('%d passed, %d failed (0 failures required)', passed, failed))
