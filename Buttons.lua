@@ -138,9 +138,11 @@ function Buttons:CreateOverlay(button)
         holder:SetFrameLevel(level + 4)
     end
 
-    local iconAnchor = button.icon or button.Icon or holder
-    local grey = holder:CreateTexture(nil, 'ARTWORK')
-    grey:SetAllPoints(iconAnchor)
+    -- Anchor to our own holder (= the whole button), never to the bar addon's
+    -- icon texture: on ElvUI the grey ended up covering only the icon's
+    -- top-left corner, so a greyed spell still looked usable (19/11 in game).
+    local grey = holder:CreateTexture(nil, 'OVERLAY')
+    grey:SetAllPoints(holder)
     grey:SetColorTexture(0, 0, 0, 0.65)
     grey:Hide()
 
@@ -148,7 +150,7 @@ function Buttons:CreateOverlay(button)
     glow:SetAllPoints(holder)
 
     local fill = glow:CreateTexture(nil, 'OVERLAY')
-    fill:SetAllPoints(iconAnchor)
+    fill:SetAllPoints(holder)
     if fill.SetBlendMode then
         fill:SetBlendMode('ADD')
     end

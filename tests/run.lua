@@ -466,7 +466,7 @@ do
     ns.KL:Dispatch('cast debug')
     local debugOutput = table.concat(Stub.chatMessages, '\n')
     Assert(debugOutput:find('withRules=1', 1, true) ~= nil, 'debug prints count of action buttons matching a rule')
-    Assert(debugOutput:find('879', 1, true) ~= nil and debugOutput:find('Exorcism', 1, true) ~= nil and debugOutput:find('types', 1, true) ~= nil and debugOutput:find('1 botones', 1, true) ~= nil, 'debug prints rule 879 resolved name, kind and button count')
+    Assert(debugOutput:find('879', 1, true) ~= nil and debugOutput:find('Exorcism', 1, true) ~= nil and debugOutput:find('types', 1, true) ~= nil and debugOutput:find('1 buttons', 1, true) ~= nil, 'debug prints rule 879 resolved name, kind and button count')
     Assert(debugOutput:find('2812', 1, true) ~= nil and debugOutput:find('Holy Wrath', 1, true) ~= nil, 'debug prints rule 2812 resolved name')
     Assert(debugOutput:find('2878', 1, true) ~= nil and debugOutput:find('pending', 1, true) ~= nil, 'debug prints pending for unresolved rule 2878')
     Assert(debugOutput:find('24275', 1, true) ~= nil and debugOutput:find('Hammer of Wrath', 1, true) ~= nil and debugOutput:find('execute', 1, true) ~= nil, 'debug prints rule 24275 resolved name and kind')
@@ -1210,6 +1210,42 @@ do
     AssertEq(rule.debuffNames['Bane of Havoc'], true, 'Late successful load rebuilds affected aura names')
     AssertEq(ns.Engine:EvalRule(rule, 1, 'target'), ns.Engine.UNKNOWN, 'Existing late-loaded aura yields UNKNOWN')
     AssertEq(ns.Buttons:GetVisual(btn), 'none', 'Late successful load refreshes the existing button')
+end
+
+
+-- In-game bug 19/11 (ElvUI): the grey covered only the icon's top-left corner, so a
+-- greyed Exorcism still looked usable against an Elemental (type 4).
+do
+    ResetTestEnvironment('PALADIN')
+    local btn = CreateFrame('CheckButton', 'ElvUI_Bar1Button6')
+    btn._state_type = 'action'
+    btn._state_action = 6
+    btn.icon = btn:CreateTexture(nil, 'ARTWORK')
+    Stub.actions[6] = { type = 'spell', id = 879 } -- Exorcism
+    ns.Buttons:Discover()
+    Stub.units.target = { canAttack = true, creatureTypeID = 4 } -- Elemental
+    ns.Engine:UpdateAll()
+    AssertEq(ns.Buttons:GetVisual(btn), 'grey', 'Exorcism is grey against an Elemental (type 4)')
+    local ov = ns.Buttons.overlays[btn]
+    AssertEq(ov.grey._allPoints, ov.frame, 'Grey covers the whole holder, not the bar addon icon')
+    AssertEq(ov.fill._allPoints, ov.frame, 'Glow fill covers the whole holder, not the bar addon icon')
+    AssertEq(ov.frame._allPoints, btn, 'Holder covers the whole button')
+
+    Stub.chatMessages = {}
+    ns.KL:Dispatch('cast debug')
+    local out = table.concat(Stub.chatMessages, ' | ')
+    local exoLine = out:match('Rule 879:[^|]*') or ''
+    Assert(exoLine:find('applies: no', 1, true) ~= nil and exoLine:find('mark: greyed', 1, true) ~= nil,
+        'debug shows the rule verdict and the mark on its button')
+
+    Stub.units.target = { canAttack = true, creatureTypeID = 6 } -- Undead
+    ns.Engine:UpdateAll()
+    Stub.chatMessages = {}
+    ns.KL:Dispatch('cast debug')
+    out = table.concat(Stub.chatMessages, ' | ')
+    exoLine = out:match('Rule 879:[^|]*') or ''
+    Assert(exoLine:find('applies: yes', 1, true) ~= nil and exoLine:find('mark: glowing', 1, true) ~= nil,
+        'debug shows yes and glow against an Undead')
 end
 
 print(string.format('%d passed, %d failed (0 failures required)', passed, failed))

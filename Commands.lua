@@ -66,15 +66,28 @@ function Commands.PrintDebug()
     local playerClass = ns.Data.GetPlayerClass()
     if playerClass then
         local ruleButtonCounts = {}
+        local ruleFirstButton = {}
         for i = 1, #ns.Buttons.list do
-            local rules = ns.Buttons.GetButtonRules(ns.Buttons.list[i])
+            local btn = ns.Buttons.list[i]
+            local rules = ns.Buttons.GetButtonRules(btn)
             if rules then
                 for j = 1, #rules do
-                    local rId = rules[j].id
-                    ruleButtonCounts[rId] = (ruleButtonCounts[rId] or 0) + 1
+                    local r = rules[j]
+                    ruleButtonCounts[r] = (ruleButtonCounts[r] or 0) + 1
+                    if not ruleFirstButton[r] then
+                        ruleFirstButton[r] = btn
+                    end
                 end
             end
         end
+
+        local STATE_TEXT = {
+            [ns.Engine.YES] = L['yes'],
+            [ns.Engine.NO] = L['no'],
+            [ns.Engine.UNKNOWN] = L['unknown'],
+        }
+        local VISUAL_TEXT = { glow = 'glowing', grey = 'greyed', none = 'unmarked' }
+        local canAttack = ns.Secret.CanAttack('target')
 
         for i = 1, #ns.Data.RULES do
             local rule = ns.Data.RULES[i]
@@ -83,12 +96,26 @@ function Commands.PrintDebug()
                 if not spellName then
                     spellName = ns.Data:IsSpellMissing(rule.id) and L['missing in this client'] or L['pending']
                 end
+                -- Verdict of this rule against the current target and the mark
+                -- shown on the first button that holds it.
+                local verdict = L['none']
+                local visual = L['none']
+                local btn = ruleFirstButton[rule]
+                if btn and canAttack then
+                    local slot = ns.Buttons.GetSlot(btn)
+                    verdict = STATE_TEXT[ns.Engine:EvalRule(rule, slot, 'target')] or L['unknown']
+                end
+                if btn then
+                    visual = L[VISUAL_TEXT[ns.Buttons:GetVisual(btn)] or 'unmarked']
+                end
                 ns.Print(string.format(
-                    L['Rule %d: %s (%s) — %d botones'],
+                    L['Rule %d: %s (%s) - %d buttons - applies: %s - mark: %s'],
                     rule.id,
                     spellName,
                     tostring(rule.kind),
-                    ruleButtonCounts[rule.id] or 0
+                    ruleButtonCounts[rule] or 0,
+                    verdict,
+                    visual
                 ))
             end
         end
