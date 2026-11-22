@@ -1,10 +1,10 @@
 ## Interface: 16001
 ## Title: |cffecd9bdKNU|r|cffffa82eCast|r
-## Notes: Action button glow and grey overlays for situational spells.
-## Notes-esES: Brillo y capa gris en botones de acción para hechizos situacionales.
-## Notes-esMX: Brillo y capa gris en botones de acción para hechizos situacionales.
+## Notes: Action bar marks for situational spells: gold glow when a spell fits the target, red cross when it does not.
+## Notes-esES: Marca en las barras los hechizos situacionales: brillo dorado si sirven contra el objetivo, cruz roja si no.
+## Notes-esMX: Marca en las barras los hechizos situacionales: brillo dorado si sirven contra el objetivo, cruz roja si no.
 ## Author: Alejandro Benzoni (KnuPwns)
-## Version: 0.1.0
+## Version: 0.2.0-beta
 ## SavedVariables: KnuCastDB
 ## X-License: MIT
 ## X-Website: https://knunet.com

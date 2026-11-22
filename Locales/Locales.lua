@@ -3,11 +3,11 @@ local KL = LibStub('KnuLib-1.0')
 
 ns.L = KL:NewLocale({
     ['Situational spell highlights on action buttons'] = 'Resaltado de hechizos situacionales en botones de acción',
-    ['Status: glow=%s, grey=%s, sound=%s, test=%s'] = 'Estado: brillo=%s, gris=%s, sonido=%s, prueba=%s',
+    ['Status: glow=%s, grey=%s, sound=%s, test=%s'] = 'Estado: brillo=%s, cruz=%s, sonido=%s, prueba=%s',
     ['on'] = 'activado',
     ['off'] = 'desactivado',
     ['Glow overlay: %s'] = 'Capa de brillo: %s',
-    ['Grey overlay: %s'] = 'Capa gris: %s',
+    ['Grey overlay: %s'] = 'Cruz roja: %s',
     ['Sound alert: %s'] = 'Alerta de sonido: %s',
     ['Test mode: %s'] = 'Modo de prueba: %s',
     ['Commands: /knu cast [glow on|off | grey on|off | sound on|off | debug | test]'] = 'Comandos: /knu cast [glow on|off | grey on|off | sound on|off | debug | test]',
@@ -15,7 +15,7 @@ ns.L = KL:NewLocale({
     ['Rule %d: %s (%s) - %d buttons - applies: %s - mark: %s'] = 'Regla %d: %s (%s) — %d botones — cumple: %s — marca: %s',
     ['unknown'] = 'no se sabe',
     ['glowing'] = 'brillo',
-    ['greyed'] = 'gris',
+    ['greyed'] = 'cruz',
     ['unmarked'] = 'ninguna',
     ['pending'] = 'pendiente',
     ['missing in this client'] = 'no existe en este cliente',
