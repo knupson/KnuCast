@@ -9,6 +9,7 @@
 ## X-License: MIT
 ## X-Website: https://knunet.com
 ## X-Category: Combat
+## X-Curse-Project-ID: 1823830
 
 Libs\KnuLib\KnuLib.xml
 Locales\Locales.lua

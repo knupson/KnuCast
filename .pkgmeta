@@ -4,6 +4,7 @@ ignore:
   - tests
   - tools
   - docs
+  - media
   - .github
   - dist
   - "*.py"
