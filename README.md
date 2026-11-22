@@ -19,7 +19,7 @@ Soporta botones de Blizzard, ElvUI, Bartender4 y Dominos sin depender de ninguno
 
 ## Estado de pruebas
 
-Probado en el juego: nada todavía; prioridad paladín.
+Probado en el juego: paladín (22/11/2026, con ElvUI): tipos de criatura, Martillo de cólera sin probar (falta nivel), brillo dorado y cruz roja. Las demás clases, sin probar.
 
 ## Límites
 
