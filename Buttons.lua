@@ -27,10 +27,8 @@ function Buttons.IsInCombat()
     return false
 end
 
--- Resolves the action slot for a button.
--- For LibActionButton (ElvUI / Bartender4), _state_action is only used when
--- _state_type == "action"; if _state_type is set to anything else, the button
--- is ignored.
+-- LibActionButton (ElvUI / Bartender4): _state_action only counts when
+-- _state_type == "action"; any other state type is ignored.
 function Buttons.GetSlot(button)
     if type(button) ~= 'table' and type(button) ~= 'userdata' then
         return nil
@@ -106,9 +104,8 @@ function Buttons.GetButtonRules(button)
     return rules, slot, spellName
 end
 
--- Glow border: 4 px gold, sticking out GLOW_OUTSET px past the button so it
--- still reads next to the bar addon's own borders (user, 21/11: the old 2 px
--- orange edge was not evident enough).
+-- Gold border sticking out GLOW_OUTSET px past the button, so it still reads
+-- next to the bar addon's own borders.
 local GLOW_EDGE = 4
 local GLOW_OUTSET = 2
 
@@ -129,9 +126,8 @@ end
 local CROSS_THICKNESS = 4
 local CROSS_INSET = 3
 
--- Two diagonal red lines corner to corner. Uses Line objects (anchored to the
--- corners, so they follow any button size); without CreateLine there is no X
--- and the veil alone remains.
+-- Line objects anchored to the corners follow any button size; without
+-- CreateLine there is no X and only the veil remains.
 local function CreateCrossLines(parent)
     if type(parent.CreateLine) ~= 'function' then
         return {}
@@ -154,8 +150,7 @@ local function CreateCrossLines(parent)
     return lines
 end
 
--- Creates our own non-secure overlay frame/textures as children of the action
--- button OUT OF COMBAT, keeping all references in Buttons.overlays[button].
+-- Built out of combat only; references live in Buttons.overlays[button].
 function Buttons:CreateOverlay(button)
     if self.overlays[button] then
         return self.overlays[button]
@@ -172,16 +167,15 @@ function Buttons:CreateOverlay(button)
         holder:SetFrameLevel(level + 4)
     end
 
-    -- Anchor to our own holder (= the whole button), never to the bar addon's
-    -- icon texture: on ElvUI the grey ended up covering only the icon's
-    -- top-left corner, so a greyed spell still looked usable (19/11 in game).
+    -- Anchor to our own holder, not the bar addon's icon texture: on ElvUI
+    -- the grey covered only the icon's top-left corner.
     local grey = holder:CreateTexture(nil, 'OVERLAY')
     grey:SetAllPoints(holder)
     grey:SetColorTexture(0, 0, 0, 0.55)
     grey:Hide()
 
-    -- Red X over the veil: a plain dark veil looked like "out of range" on
-    -- ElvUI (user, 21/11), so "this spell is useless here" needs its own sign.
+    -- A dark veil alone reads as "out of range" on ElvUI, so the red X marks
+    -- "useless against this target".
     local cross = CreateFrame('Frame', nil, holder)
     cross:SetAllPoints(holder)
     cross.lines = CreateCrossLines(cross)

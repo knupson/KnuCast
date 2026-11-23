@@ -81,8 +81,8 @@ do
     Assert(c2 ~= nil, 'Syntax check tests/run.lua: ' .. tostring(e2))
 end
 
--- Judgement-without-Seal rule, removed from Data.lua on 21/11 (user: no mark) but
--- still the reference case for kind = 'requires' with auraUnit = 'player'.
+-- Not in Data.lua (no mark for it), but the reference case for kind = 'requires'
+-- with auraUnit = 'player'.
 local TEST_JUDGEMENT_RULE = { id = 20271, class = 'PALADIN', kind = 'requires', auraUnit = 'player',
     aura = { 21084, 21082, 20375, 20164, 20165, 20166, 1311649 } }
 local TEST_CONFLAGRATE_RULE = { id = 17962, class = 'WARLOCK', kind = 'requires', auraUnit = 'target', aura = { 348 } }
@@ -872,7 +872,7 @@ do
     ns.Engine:UpdateAll()
     AssertEq(ns.Buttons:GetVisual(btn1), 'glow', 'Sap glows if combat state is secret (fallback to types)')
 
-    -- Real data: Judgement without a Seal is not marked (user, 21/11)
+    -- Real data: Judgement without a Seal is not marked
     ResetTestEnvironment('PALADIN')
     btn1 = CreateFrame('CheckButton', 'ActionButton1')
     btn1.action = 1
@@ -1161,7 +1161,7 @@ do
     ns.Engine:UpdateAll()
     AssertEq(ns.Buttons:GetVisual(btn1), 'none', 'Aura absence after 100 dummy auras results in UNKNOWN (no mark), not absent')
     end)
-    -- Shipped data: Conflagrate without Immolate is not marked (21/11)
+    -- Shipped data: Conflagrate without Immolate is not marked
     ResetTestEnvironment('WARLOCK')
     Stub.spells[348] = 'Immolate'
     ns.Data:BuildIndex()
@@ -1288,8 +1288,8 @@ do
 end
 
 
--- In-game bug 19/11 (ElvUI): the grey covered only the icon's top-left corner, so a
--- greyed Exorcism still looked usable against an Elemental (type 4).
+-- On ElvUI the grey covered only the icon's top-left corner, so a greyed
+-- Exorcism still looked usable against an Elemental (type 4).
 do
     ResetTestEnvironment('PALADIN')
     local btn = CreateFrame('CheckButton', 'ElvUI_Bar1Button6')
@@ -1305,7 +1305,7 @@ do
     AssertEq(ov.grey._allPoints, ov.frame, 'Grey covers the whole holder, not the bar addon icon')
     AssertEq(ov.fill._allPoints, ov.frame, 'Glow fill covers the whole holder, not the bar addon icon')
     AssertEq(ov.frame._allPoints, btn, 'Holder covers the whole button')
-    -- 21/11 in game: a dark veil alone read as "out of range"; grey adds a red X.
+    -- A dark veil alone reads as "out of range"; grey adds a red X.
     AssertEq(ov.cross:IsShown(), true, 'Grey shows the red X')
     AssertEq(#ov.cross.lines, 2, 'The X has two lines')
     AssertEq(ov.cross.lines[1]._start[1], 'TOPLEFT', 'First line starts at the top-left corner')

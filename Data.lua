@@ -21,7 +21,6 @@ Data.CREATURE_TYPES = {
 }
 
 Data.RULES = {
-    -- Creature type restrictions (types)
     { id = 879, class = 'PALADIN', kind = 'types', types = { 6, 3 }, source = 'https://www.wowhead.com/classic/spell=879' },
     { id = 2812, class = 'PALADIN', kind = 'types', types = { 6, 3 }, source = 'https://www.wowhead.com/classic/spell=2812' },
     { id = 2878, class = 'PALADIN', kind = 'types', types = { 6 }, source = 'https://www.wowhead.com/classic/spell=2878' },
@@ -38,11 +37,9 @@ Data.RULES = {
     { id = 118, class = 'MAGE', kind = 'types', types = { 1, 7, 8 }, source = 'https://www.wowhead.com/classic/spell=118' },
     { id = 6770, class = 'ROGUE', kind = 'types', types = { 7 }, source = 'https://www.wowhead.com/classic/spell=6770' },
 
-    -- Execute range spells (execute)
     { id = 24275, class = 'PALADIN', kind = 'execute', source = 'https://www.wowhead.com/classic/spell=24275' },
     { id = 5308, class = 'WARRIOR', kind = 'execute', source = 'https://www.wowhead.com/classic/spell=5308' },
 
-    -- Interrupts (interrupt)
     { id = 72, class = 'WARRIOR', kind = 'interrupt', source = 'https://www.wowhead.com/classic/spell=72' },
     { id = 6552, class = 'WARRIOR', kind = 'interrupt', source = 'https://www.wowhead.com/classic/spell=6552' },
     { id = 1766, class = 'ROGUE', kind = 'interrupt', source = 'https://www.wowhead.com/classic/spell=1766' },
@@ -50,7 +47,6 @@ Data.RULES = {
     { id = 8042, class = 'SHAMAN', kind = 'interrupt', source = 'https://www.wowhead.com/classic/spell=8042' },
     { id = 15487, class = 'PRIEST', kind = 'interrupt', source = 'https://www.wowhead.com/classic/spell=15487' },
 
-    -- Player debuffs that should be kept on the target (debuff)
     { id = 589, class = 'PRIEST', kind = 'debuff', debuff = { 589 }, source = 'https://www.wowhead.com/classic/spell=589' },
     { id = 172, class = 'WARLOCK', kind = 'debuff', debuff = { 172 }, source = 'https://www.wowhead.com/classic/spell=172' },
     { id = 348, class = 'WARLOCK', kind = 'debuff', debuff = { 348 }, source = 'https://www.wowhead.com/classic/spell=348' },
@@ -62,12 +58,8 @@ Data.RULES = {
     { id = 1978, class = 'HUNTER', kind = 'debuff', debuff = { 1978 }, source = 'https://www.wowhead.com/classic/spell=1978' },
     { id = 772, class = 'WARRIOR', kind = 'debuff', debuff = { 772 }, source = 'https://www.wowhead.com/classic/spell=772' },
     
-    -- New rules from condiciones-2
-    -- Judgement without a Seal is NOT marked (user, 21/11: a red X there reads as
-    -- "useless against this target", and it is not). Rule kept in tests/run.lua.
-    -- Conflagrate without your Immolate is NOT marked either: same case as
-    -- Judgement (something of yours is missing, the spell is not useless
-    -- against the target). Rule kept in tests/run.lua for kind = 'requires'.
+    -- No rule for Judgement without a Seal or Conflagrate without Immolate: a
+    -- missing buff of yours does not make the spell useless against the target.
     
     { id = 8129, class = 'PRIEST', kind = 'mana', source = 'https://www.wowhead.com/classic/spell=8129' },
     { id = 5138, class = 'WARLOCK', kind = 'mana', source = 'https://www.wowhead.com/classic/spell=5138' },
@@ -209,8 +201,7 @@ function Data:MarkSpellFailed(spellID)
 end
 
 -- An ID whose loads all failed does not exist in this client (e.g. a Classic ID
--- that Forever removed). Such an aura can never be on a unit, so it must not
--- keep a rule's name set incomplete.
+-- Forever removed), so it must not keep a rule's name set incomplete.
 function Data:IsSpellMissing(spellID)
     return self.failedSpells[spellID] == true
         and not self.inFlightSpells[spellID]

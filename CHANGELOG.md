@@ -1,5 +1,15 @@
 # Registro de cambios
 
+## 0.2.1-beta
+
+Sólo cambian textos. El comportamiento del addon es el mismo.
+
+- Se probó en el juego con ElvUI. Las barras de Blizzard, Bartender4 y Dominos todavía no se probaron en el juego, y el README ahora lo dice.
+- En el chat en inglés, el estado y el aviso del comando de la cruz decían «grey». Ahora dicen «cross» y «Red cross». En castellano ya decían «cruz».
+- La descripción del comando `/knu cast` menciona la cruz.
+- El texto de `/knu cast debug` usa palabras separadas («tipo de objetivo», «con regla») y guiones comunes entre los datos.
+- Se reescribieron frases del README y de la versión 0.1.0-beta para que se lean más claras.
+
 ## 0.2.0-beta
 
 Probado en el juego con un paladín y ElvUI el 22/11/2026. Las demás clases todavía no se probaron.
@@ -18,7 +28,9 @@ Probado en el juego con un paladín y ElvUI el 22/11/2026. Las demás clases tod
 ## 0.1.0-beta
 
 - Primera versión beta de KnuCast para WoW Forever (`Interface: 16001`).
-- Motor por eventos con precedencia de tres estados (`SÍ`, `NO`, `DESCONOCIDO`) y protección completa ante valores secretos (`canaccessvalue` / `issecretvalue`).
-- Reglas iniciales por clase para tipo de criatura (`types`), ejecución por acción usable (`execute`), interrupciones (`interrupt`) y debuffs propios (`debuff`).
-- Descubrimiento de botones de Blizzard, ElvUI, Bartender4 y Dominos con creación de capas no seguras fuera de combate.
-- Alerta sonora opcional (una vez por transición de estado del objetivo) y comandos `/knu cast` (`/knu knucast`).
+- Marca en tus barras de acción los hechizos que sirven contra el objetivo (brillo) y los que no (capa gris).
+- KnuCast no lee datos secretos; si un dato es secreto, no marca.
+- Reglas iniciales por clase: tipo de criatura, hechizos que sólo se pueden usar con el objetivo en vida baja, interrupciones cuando el objetivo lanza, y debuffs propios que faltan en el objetivo.
+- Busca los botones de las barras de Blizzard, ElvUI, Bartender4 y Dominos. Los botones nuevos que aparecen en combate se marcan al salir del combate.
+- Alerta de sonido opcional que suena una vez cada vez que cambia el estado del objetivo.
+- Comando `/knu cast` (alias `/knu knucast`).

@@ -2,17 +2,17 @@ local _, ns = ...
 local KL = LibStub('KnuLib-1.0')
 
 ns.L = KL:NewLocale({
-    ['Situational spell highlights on action buttons'] = 'Resaltado de hechizos situacionales en botones de acción',
-    ['Status: glow=%s, grey=%s, sound=%s, test=%s'] = 'Estado: brillo=%s, cruz=%s, sonido=%s, prueba=%s',
+    ['Highlights situational spells on action buttons and crosses out the ones that do not work'] = 'Resalta hechizos situacionales en botones de acción y marca con una cruz roja los que no sirven',
+    ['Status: glow=%s, cross=%s, sound=%s, test=%s'] = 'Estado: brillo=%s, cruz=%s, sonido=%s, prueba=%s',
     ['on'] = 'activado',
     ['off'] = 'desactivado',
     ['Glow overlay: %s'] = 'Capa de brillo: %s',
-    ['Grey overlay: %s'] = 'Cruz roja: %s',
+    ['Red cross: %s'] = 'Cruz roja: %s',
     ['Sound alert: %s'] = 'Alerta de sonido: %s',
     ['Test mode: %s'] = 'Modo de prueba: %s',
     ['Commands: /knu cast [glow on|off | grey on|off | sound on|off | debug | test]'] = 'Comandos: /knu cast [glow on|off | grey on|off | sound on|off | debug | test]',
-    ['Debug: targetType=%s, casting=%s, buttons=%d, withRules=%d'] = 'Depuración: tipoObjetivo=%s, lanzando=%s, botones=%d, conRegla=%d',
-    ['Rule %d: %s (%s) - %d buttons - applies: %s - mark: %s'] = 'Regla %d: %s (%s) — %d botones — cumple: %s — marca: %s',
+    ['Debug: targetType=%s, casting=%s, buttons=%d, withRules=%d'] = 'Depuración: tipo de objetivo=%s, lanzando=%s, botones=%d, con regla=%d',
+    ['Rule %d: %s (%s) - %d buttons - applies: %s - mark: %s'] = 'Regla %d: %s (%s) - %d botones - cumple: %s - marca: %s',
     ['unknown'] = 'no se sabe',
     ['glowing'] = 'brillo',
     ['greyed'] = 'cruz',

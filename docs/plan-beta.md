@@ -1,4 +1,4 @@
-# KnuCast 0.1.0-beta — plan (2026-11-18)
+# KnuCast 0.1.0-beta: plan (2026-11-18)
 
 Requisitos del user: `E:\Repositorios\Personal\_datos\WOWAddons\knucast\requisitos-user-2026-11-18.md`.
 API de Forever: `E:\Repositorios\Personal\_datos\WOWAddons\knucast\api-forever-2026-11-18.md`.
@@ -15,9 +15,9 @@ Sonido opcional (apagado por defecto) cuando un botón pasa a «sirve» por inte
 | Condición | Lectura | Brillo | Gris | Si el dato es secreto |
 |---|---|---|---|---|
 | Tipo de criatura (`types`) | 2.º retorno de `UnitCreatureType("target")` (ID, no texto) | tipo permitido | tipo no permitido | nada |
-| Vida baja (`execute`) | `IsUsableAction(slot)` del botón (el juego decide; `UnitHealth` es siempre secreto) | usable y objetivo atacable | — (Blizzard ya lo pinta inusable) | nada |
-| Objetivo lanzando (`interrupt`) | `UnitCastingInfo`/`UnitChannelInfo("target")`; si vienen secretos, estado por eventos `UNIT_SPELLCAST_*` del objetivo | lanzando (y no `notInterruptible` si se puede leer) | — | estado por eventos |
-| Debuff propio (`debuff`) | `C_UnitAuras.GetAuraDataBySpellName("target", nombre, "HARMFUL\|PLAYER")` | falta el debuff | — | nada |
+| Vida baja (`execute`) | `IsUsableAction(slot)` del botón (el juego decide; `UnitHealth` es siempre secreto) | usable y objetivo atacable | no aplica (Blizzard ya lo pinta inusable) | nada |
+| Objetivo lanzando (`interrupt`) | `UnitCastingInfo`/`UnitChannelInfo("target")`; si vienen secretos, estado por eventos `UNIT_SPELLCAST_*` del objetivo | lanzando (y no `notInterruptible` si se puede leer) | no aplica | estado por eventos |
+| Debuff propio (`debuff`) | `C_UnitAuras.GetAuraDataBySpellName("target", nombre, "HARMFUL\|PLAYER")` | falta el debuff | no aplica | nada |
 
 Todo por eventos (nada de `OnUpdate` ni `C_Timer.NewTicker`): `PLAYER_TARGET_CHANGED`, `UNIT_FLAGS`/`UNIT_FACTION` del objetivo, `UNIT_HEALTH` del objetivo (sólo para volver a preguntar `IsUsableAction`), `ACTIONBAR_UPDATE_USABLE`, `ACTIONBAR_SLOT_CHANGED`, `ACTIONBAR_PAGE_CHANGED`, `UPDATE_BONUS_ACTIONBAR`, `UNIT_SPELLCAST_START/STOP/FAILED/INTERRUPTED/CHANNEL_START/CHANNEL_STOP/INTERRUPTIBLE/NOT_INTERRUPTIBLE` del objetivo, `UNIT_AURA` del objetivo, `SPELLS_CHANGED`, `PLAYER_ENTERING_WORLD`.
 

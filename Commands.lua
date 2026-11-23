@@ -21,7 +21,7 @@ end
 
 function Commands.PrintStatus()
     ns.Print(string.format(
-        L['Status: glow=%s, grey=%s, sound=%s, test=%s'],
+        L['Status: glow=%s, cross=%s, sound=%s, test=%s'],
         FormatBool(ns.db.glow),
         FormatBool(ns.db.grey),
         FormatBool(ns.db.sound),
@@ -96,8 +96,7 @@ function Commands.PrintDebug()
                 if not spellName then
                     spellName = ns.Data:IsSpellMissing(rule.id) and L['missing in this client'] or L['pending']
                 end
-                -- Verdict of this rule against the current target and the mark
-                -- shown on the first button that holds it.
+                -- The mark shown is the one on the first button that holds the rule.
                 local verdict = L['none']
                 local visual = L['none']
                 local btn = ruleFirstButton[rule]
@@ -143,7 +142,7 @@ function Commands.Handle(msg)
             return Commands.PrintStatus()
         end
         ns.db.grey = val
-        ns.Print(string.format(L['Grey overlay: %s'], FormatBool(val)))
+        ns.Print(string.format(L['Red cross: %s'], FormatBool(val)))
         ns.Engine:UpdateAll()
         return
     elseif sub == 'sound' then
@@ -167,7 +166,7 @@ function Commands.Handle(msg)
 end
 
 function Commands:Register()
-    ns.KL:RegisterCommand('cast', Commands.Handle, L['Situational spell highlights on action buttons'], { 'knucast' })
+    ns.KL:RegisterCommand('cast', Commands.Handle, L['Highlights situational spells on action buttons and crosses out the ones that do not work'], { 'knucast' })
 end
 
 -- Registered through KnuLib's login queue: deferred until PLAYER_LOGIN, or run

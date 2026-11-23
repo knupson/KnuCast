@@ -1,4 +1,4 @@
-# Prueba en el juego — KnuCast (rama `condiciones-2`, paladín)
+# Prueba en el juego: KnuCast (rama `condiciones-2`, paladín)
 
 Nada de esto está probado todavía en el juego. Lo que se ve acá decide si sale la beta.
 

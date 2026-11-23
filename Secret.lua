@@ -75,11 +75,9 @@ local function ReadCastInfo(fn, unit)
     end
 
     if not Secret.Accessible(name) then
-        -- Measured in combat (KnuSonda 0.8.0, 20/11): while the target casts,
-        -- UnitCastingInfo returns its values as secrets, and returns nothing once
-        -- the cast ends. A secret name therefore means "casting". Interruptibility
-        -- (#8) is secret too: unknown counts as interruptible unless a readable
-        -- flag or UNIT_SPELLCAST_NOT_INTERRUPTIBLE says otherwise (Engine).
+        -- A secret name means casting (values come back secret while it casts,
+        -- nothing after). Unknown interruptibility counts as interruptible
+        -- unless a readable flag or UNIT_SPELLCAST_NOT_INTERRUPTIBLE says no.
         if notInterruptible == true then
             return true, true, false, true
         end
