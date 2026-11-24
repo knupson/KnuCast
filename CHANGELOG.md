@@ -4,7 +4,7 @@
 
 - La primera vez que entrás con KnuCast (una sola vez por cuenta), el chat muestra dónde marcarlo como favorito en CurseForge y dónde reportar errores. Los mismos links aparecen al final de `/knu cast`.
 - Al final de `/knu cast` hay un link a los otros addons de KNU. El README los lista.
-- KnuLib pasa a la versión 7. En el juego no cambia nada.
+- KnuLib pasa a la versión 8: `/knu help` también muestra los otros addons de KNU.
 
 ## 0.2.1-beta
 

@@ -825,7 +825,7 @@ end
 -- KnuLib MINOR 5 integration
 do
     local KL = ns.KL
-    AssertEq(KL.minor or select(2, LibStub:GetLibrary('KnuLib-1.0')), 7, 'Embedded KnuLib is MINOR 7')
+    AssertEq(KL.minor or select(2, LibStub:GetLibrary('KnuLib-1.0')), 8, 'Embedded KnuLib is MINOR 8')
     Assert(type(ns.events) == 'table' and type(ns.events.On) == 'function', 'ns.events is a KnuLib NewEvents object')
 
     local gotName, gotArg
