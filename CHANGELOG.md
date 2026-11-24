@@ -1,5 +1,10 @@
 # Registro de cambios
 
+## Sin publicar
+
+- La primera vez que entrás con KnuCast (una sola vez por cuenta), el chat muestra dónde marcarlo como favorito en CurseForge y dónde reportar errores. Los mismos links aparecen al final de `/knu cast`.
+- KnuLib pasa a la versión 7. En el juego no cambia nada.
+
 ## 0.2.1-beta
 
 Sólo cambian textos. El comportamiento del addon es el mismo.

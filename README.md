@@ -28,3 +28,15 @@ Probado en el juego: paladín (22/11/2026, con ElvUI): tipos de criatura, Martil
 - El tipo de recurso del objetivo se lee siempre, pero cuánto maná tiene es secreto en combate. Un objetivo que no usa maná lleva la cruz y uno con maná queda sin marca.
 - Las macros quedan fuera del alcance de la beta: sólo se evalúan las ranuras de acción de tipo `spell`.
 - Las capas visuales se crean únicamente fuera de combate. Si aparecen botones nuevos durante el combate, su creación se difiere a `PLAYER_REGEN_ENABLED`.
+
+## Opiniones y errores
+
+Si KnuCast te sirve, marcalo como favorito (la estrella) en [CurseForge](https://www.curseforge.com/wow/addons/knucast) y dejá un comentario: así lo encuentran otros jugadores de Forever.
+
+Si encontrás un error, abrí un [issue en GitHub](https://github.com/knupson/KnuCast/issues) o dejá un comentario en CurseForge. Pegá el texto del error que copia BugSack y contá qué estabas haciendo. Las ideas y los pedidos también se reciben ahí.
+
+## Feedback and bugs
+
+If KnuCast is useful to you, add it to your favorites (the star) on [CurseForge](https://www.curseforge.com/wow/addons/knucast) and leave a comment. That helps other Forever players find it.
+
+If you find a bug, open an [issue on GitHub](https://github.com/knupson/KnuCast/issues) or leave a comment on CurseForge. Paste the error text from BugSack and say what you were doing. Ideas and requests are welcome there too.

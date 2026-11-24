@@ -23,4 +23,6 @@ ns.L = KL:NewLocale({
     ['none'] = 'ninguno',
     ['yes'] = 'sí',
     ['no'] = 'no',
+    ['Like it? Add it to your favorites on CurseForge and leave a comment: %s'] = '¿Te sirve? Marcalo como favorito en CurseForge y dejá un comentario: %s',
+    ['Found a bug? Report it with the BugSack error text: %s'] = '¿Encontraste un error? Reportalo con el texto que copia BugSack: %s',
 })

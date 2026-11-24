@@ -73,6 +73,20 @@ AssertEq(ns.KL.commands['cast'], nil, 'Command is not registered at file load')
 Stub.FireEvent('PLAYER_LOGIN')
 Assert(ns.KL.commands['cast'] ~= nil, 'Command is registered on PLAYER_LOGIN')
 
+-- Feedback invitation: once per account on login, plus at the end of the help.
+do
+    AssertEq(ns.db.feedbackShown, true, 'Feedback line is flagged as shown after PLAYER_LOGIN')
+    local loginChat = table.concat(Stub.chatMessages or {}, '\n')
+    Assert(loginChat:find('curseforge.com/wow/addons/knucast', 1, true) ~= nil, 'Login prints the CurseForge link once')
+    Assert(loginChat:find('github.com/knupson/KnuCast/issues', 1, true) ~= nil, 'Login prints the issues link once')
+    local before = #Stub.chatMessages
+    ns.Commands.ShowFeedbackOnce()
+    AssertEq(#Stub.chatMessages, before, 'Feedback line is not repeated once flagged')
+    ns.KL:Dispatch('cast')
+    local helpChat = table.concat(Stub.chatMessages, '\n', before + 1)
+    Assert(helpChat:find('curseforge.com/wow/addons/knucast', 1, true) ~= nil, 'Help footer includes the CurseForge link')
+end
+
 -- Also syntax-check the test files themselves.
 do
     local c1, e1 = loadfile('tests/wow_stub.lua')

@@ -28,6 +28,24 @@ function Commands.PrintStatus()
         FormatBool(ns.Engine.testMode)
     ))
     ns.Print(L['Commands: /knu cast [glow on|off | grey on|off | sound on|off | debug | test]'])
+    Commands.PrintFeedback()
+end
+
+local CURSEFORGE_URL = 'https://www.curseforge.com/wow/addons/knucast'
+local ISSUES_URL = 'https://github.com/knupson/KnuCast/issues'
+
+function Commands.PrintFeedback()
+    ns.Print(string.format(L['Like it? Add it to your favorites on CurseForge and leave a comment: %s'], CURSEFORGE_URL))
+    ns.Print(string.format(L['Found a bug? Report it with the BugSack error text: %s'], ISSUES_URL))
+end
+
+-- Shown once per account; KnuCastDB is account-wide.
+function Commands.ShowFeedbackOnce()
+    if ns.db.feedbackShown then
+        return
+    end
+    ns.db.feedbackShown = true
+    Commands.PrintFeedback()
 end
 
 function Commands.PrintDebug()
@@ -173,4 +191,5 @@ end
 -- immediately if the client is already logged in (KnuLib MINOR 5).
 ns.KL:OnLogin(function()
     Commands:Register()
+    Commands.ShowFeedbackOnce()
 end)
