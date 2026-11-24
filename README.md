@@ -29,6 +29,24 @@ Probado en el juego: paladín (22/11/2026, con ElvUI): tipos de criatura, Martil
 - Las macros quedan fuera del alcance de la beta: sólo se evalúan las ranuras de acción de tipo `spell`.
 - Las capas visuales se crean únicamente fuera de combate. Si aparecen botones nuevos durante el combate, su creación se difiere a `PLAYER_REGEN_ENABLED`.
 
+## Otros addons de KNU
+
+- [KnuUI](https://www.curseforge.com/wow/addons/knuui): layout compacto ámbar para ElvUI.
+- [KnuMail](https://www.curseforge.com/wow/addons/knumail): buzón simple y seguro.
+- [KnuJunk](https://www.curseforge.com/wow/addons/knujunk): marca y vende lo que no sirve, y repara solo.
+- [KnuCompanion](https://www.curseforge.com/wow/addons/knucompanion): app de escritorio y addon para ver bolsas, banco, mapa y misiones en otro monitor.
+
+Todos los proyectos: https://www.curseforge.com/members/knupwns/projects
+
+## Other KNU addons
+
+- [KnuUI](https://www.curseforge.com/wow/addons/knuui): compact amber layout for ElvUI.
+- [KnuMail](https://www.curseforge.com/wow/addons/knumail): a simple, safe mailbox.
+- [KnuJunk](https://www.curseforge.com/wow/addons/knujunk): marks and sells what you don't need, and repairs for you.
+- [KnuCompanion](https://www.curseforge.com/wow/addons/knucompanion): desktop app plus addon that shows your bags, bank, map and quests on another monitor.
+
+All projects: https://www.curseforge.com/members/knupwns/projects
+
 ## Opiniones y errores
 
 Si KnuCast te sirve, marcalo como favorito (la estrella) en [CurseForge](https://www.curseforge.com/wow/addons/knucast) y dejá un comentario: así lo encuentran otros jugadores de Forever.

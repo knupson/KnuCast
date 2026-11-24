@@ -85,6 +85,8 @@ do
     ns.KL:Dispatch('cast')
     local helpChat = table.concat(Stub.chatMessages, '\n', before + 1)
     Assert(helpChat:find('curseforge.com/wow/addons/knucast', 1, true) ~= nil, 'Help footer includes the CurseForge link')
+    Assert(helpChat:find('curseforge.com/members/knupwns/projects', 1, true) ~= nil, 'Help footer links the other KNU addons')
+    Assert(loginChat:find('members/knupwns', 1, true) == nil, 'Login notice does not include the KNU addons link')
 end
 
 -- Also syntax-check the test files themselves.

@@ -29,6 +29,7 @@ function Commands.PrintStatus()
     ))
     ns.Print(L['Commands: /knu cast [glow on|off | grey on|off | sound on|off | debug | test]'])
     Commands.PrintFeedback()
+    ns.Print(string.format(L['Other KNU addons: %s'], 'https://www.curseforge.com/members/knupwns/projects'))
 end
 
 local CURSEFORGE_URL = 'https://www.curseforge.com/wow/addons/knucast'
