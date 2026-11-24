@@ -24,6 +24,6 @@ ns.L = KL:NewLocale({
     ['yes'] = 'sí',
     ['no'] = 'no',
     ['Like it? Add it to your favorites on CurseForge and leave a comment: %s'] = '¿Te sirve? Marcalo como favorito en CurseForge y dejá un comentario: %s',
-    ['Other KNU addons: %s'] = 'Otros addons de KNU: %s',
+    ['Other KNU addons: KnuCompanion (%s) and more at %s'] = 'Otros addons de KNU: KnuCompanion (%s) y más en %s',
     ['Found a bug? Report it with the BugSack error text: %s'] = '¿Encontraste un error? Reportalo con el texto que copia BugSack: %s',
 })
